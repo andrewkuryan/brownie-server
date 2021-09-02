@@ -1,5 +1,9 @@
 package com.gitlab.andrewkuryan.brownie
 
+import com.gitlab.andrewkuryan.brownie.api.MemoryStorageApi
+import com.gitlab.andrewkuryan.brownie.api.StorageApi
+import com.gitlab.andrewkuryan.brownie.entity.BackendSession
+import com.gitlab.andrewkuryan.brownie.entity.User
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.gson.*
@@ -9,6 +13,7 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.util.*
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.io.File
 import java.io.FileNotFoundException
@@ -38,6 +43,10 @@ fun checkSignature(publicKey: String, signMessage: String, signature: String): B
 fun main() {
     Security.addProvider(BouncyCastleProvider())
 
+    val storageApi: StorageApi = MemoryStorageApi()
+
+    val sessionUserKey = AttributeKey<User>("SessionUser")
+
     embeddedServer(CIO, 3388) {
         install(DoubleReceive)
         install(ContentNegotiation) {
@@ -58,6 +67,7 @@ fun main() {
                 }
             }
             exception<Throwable> { cause ->
+                cause.printStackTrace()
                 when (cause) {
                     is NoPermissionException -> call.respond(HttpStatusCode.Forbidden)
                     else -> call.respond(HttpStatusCode.InternalServerError)
@@ -86,6 +96,15 @@ ${if (body.isNotEmpty()) ",\"body\":$body" else ""}}"""
                     if (!checkSignature(rawPublicKey, signMessage, signature)) {
                         throw NoPermissionException("Signature does not match")
                     }
+
+                    val backendSession = BackendSession(rawPublicKey, browserName, osName)
+                    val user = storageApi.userApi.getUserBySession(backendSession)
+                    if (user == null) {
+                        val newUser = storageApi.userApi.createNewGuest(backendSession)
+                        context.attributes.put(sessionUserKey, newUser)
+                    } else {
+                        context.attributes.put(sessionUserKey, user)
+                    }
                 }
             }
 
@@ -95,6 +114,7 @@ ${if (body.isNotEmpty()) ",\"body\":$body" else ""}}"""
 
             post("/api/test-post") {
                 val body = call.receive<String>()
+                println(context.attributes[sessionUserKey])
                 call.respond("""{ "Result": $body }""")
             }
         }
