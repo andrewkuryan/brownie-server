@@ -3,6 +3,7 @@ package com.gitlab.andrewkuryan.brownie
 import com.gitlab.andrewkuryan.brownie.api.MemoryStorageApi
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.routes.rootRoutes
+import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.gson.*
@@ -22,6 +23,7 @@ fun main() {
     Security.addProvider(BouncyCastleProvider())
 
     val storageApi: StorageApi = MemoryStorageApi()
+    val gson = Gson()
 
     embeddedServer(CIO, 3388) {
         install(DoubleReceive)
@@ -51,6 +53,6 @@ fun main() {
             }
         }
 
-        rootRoutes(storageApi)
+        rootRoutes(gson, storageApi)
     }.start(wait = true)
 }

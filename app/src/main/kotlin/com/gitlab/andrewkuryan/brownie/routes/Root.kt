@@ -1,8 +1,11 @@
 package com.gitlab.andrewkuryan.brownie.routes
 
+import com.github.salomonbrys.kotson.jsonObject
+import com.github.salomonbrys.kotson.toJson
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.BackendSession
 import com.gitlab.andrewkuryan.brownie.entity.User
+import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.request.*
 import io.ktor.routing.*
@@ -31,7 +34,7 @@ fun checkSignature(publicKey: String, signMessage: String, signature: String): B
     return ecdsaVerify.verify(Base64.getDecoder().decode(signature))
 }
 
-fun Application.rootRoutes(storageApi: StorageApi) {
+fun Application.rootRoutes(gson: Gson, storageApi: StorageApi) {
     routing {
         intercept(ApplicationCallPipeline.Call) {
             if (call.request.uri.startsWith("/api")) {
@@ -41,16 +44,18 @@ fun Application.rootRoutes(storageApi: StorageApi) {
                 val osName = call.request.headers["X-OsName"] ?: ""
                 val body = call.receive<String>()
 
-                val signMessage = """{
-"url":"${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
-"browserName":"$browserName",
-"osName":"$osName",
-"method":"${call.request.httpMethod.value}"
-${if (body.isNotEmpty()) ",\"body\":$body" else ""}}"""
-                    .trimIndent().trim()
-                    .replace("\n", "")
+                val signMessageObject = jsonObject(
+                    "url" to URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8),
+                    "browserName" to browserName,
+                    "osName" to osName,
+                    "method" to call.request.httpMethod.value,
+                ).apply {
+                    if (body.isNotEmpty()) {
+                        add("body", body.toJson())
+                    }
+                }
 
-                if (!checkSignature(rawPublicKey, signMessage, signature)) {
+                if (!checkSignature(rawPublicKey, signMessageObject.toString(), signature)) {
                     throw NoPermissionException("Signature does not match")
                 }
 
@@ -65,6 +70,6 @@ ${if (body.isNotEmpty()) ",\"body\":$body" else ""}}"""
             }
         }
 
-        userRoutes(storageApi)
+        userRoutes(gson, storageApi)
     }
 }

@@ -27,6 +27,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
 
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
+    implementation("com.github.salomonbrys.kotson:kotson:2.5.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
