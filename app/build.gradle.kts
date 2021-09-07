@@ -5,6 +5,7 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven(url = "https://jitpack.io")
 }
 
 val exposedVersion = "0.31.1"
@@ -28,6 +29,7 @@ dependencies {
 
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
     implementation("com.github.salomonbrys.kotson:kotson:2.5.0")
+    implementation("io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram:6.0.5")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")

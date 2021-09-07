@@ -3,10 +3,8 @@ package com.gitlab.andrewkuryan.brownie
 import com.gitlab.andrewkuryan.brownie.api.MemoryStorageApi
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.routes.rootRoutes
-import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.features.*
-import io.ktor.gson.*
 import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
@@ -23,18 +21,17 @@ fun main() {
     Security.addProvider(BouncyCastleProvider())
 
     val storageApi: StorageApi = MemoryStorageApi()
-    val gson = Gson()
 
     embeddedServer(CIO, 3388) {
         install(DoubleReceive)
         install(ContentNegotiation) {
-            gson()
+            register(ContentType.Application.Json, CustomGsonConverter())
         }
         install(StatusPages) {
             status(HttpStatusCode.NotFound) {
                 try {
                     call.respondFile(
-                        File("web/${call.request.uri.split("/").last()}")
+                            File("web/${call.request.uri.split("/").last()}")
                     )
                 } catch (exc: Exception) {
                     when (exc) {
@@ -53,6 +50,7 @@ fun main() {
             }
         }
 
-        rootRoutes(gson, storageApi)
+        rootRoutes(storageApi)
+        launchTelegramBot(storageApi)
     }.start(wait = true)
 }
