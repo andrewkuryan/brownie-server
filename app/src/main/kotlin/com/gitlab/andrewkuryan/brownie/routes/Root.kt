@@ -1,10 +1,9 @@
 package com.gitlab.andrewkuryan.brownie.routes
 
-import com.github.salomonbrys.kotson.jsonObject
-import com.github.salomonbrys.kotson.toJson
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.BackendSession
 import com.gitlab.andrewkuryan.brownie.entity.User
+import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.request.*
 import io.ktor.routing.*
@@ -20,6 +19,7 @@ import java.util.*
 import javax.naming.NoPermissionException
 
 val sessionUserKey = AttributeKey<User>("SessionUser")
+val receivedBodyKey = AttributeKey<String>("ReceivedBody")
 
 fun checkSignature(publicKey: String, signMessage: String, signature: String): Boolean {
     val kf = KeyFactory.getInstance("EC")
@@ -27,13 +27,13 @@ fun checkSignature(publicKey: String, signMessage: String, signature: String): B
     val pk = kf.generatePublic(publicKeySpec)
 
     val ecdsaVerify = Signature
-        .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
+            .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
     ecdsaVerify.initVerify(pk)
     ecdsaVerify.update(signMessage.toByteArray())
     return ecdsaVerify.verify(Base64.getDecoder().decode(signature))
 }
 
-fun Application.rootRoutes(storageApi: StorageApi) {
+fun Application.rootRoutes(storageApi: StorageApi, gson: Gson) {
     routing {
         intercept(ApplicationCallPipeline.Call) {
             if (call.request.uri.startsWith("/api")) {
@@ -43,18 +43,16 @@ fun Application.rootRoutes(storageApi: StorageApi) {
                 val osName = call.request.headers["X-OsName"] ?: ""
                 val body = call.receive<String>()
 
-                val signMessageObject = jsonObject(
-                    "url" to URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8),
-                    "browserName" to browserName,
-                    "osName" to osName,
-                    "method" to call.request.httpMethod.value,
-                ).apply {
-                    if (body.isNotEmpty()) {
-                        add("body", body.toJson())
-                    }
-                }
+                val signMessageObject = """
+                    |{"url":"${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
+                    |"browserName":"$browserName",
+                    |"osName":"$osName",
+                    |"method":"${call.request.httpMethod.value}"
+                    |${if (body.isNotEmpty()) ",\"body\":${body}" else ""}}""".trimMargin()
+                        .trim()
+                        .replace("\n", "")
 
-                if (!checkSignature(rawPublicKey, signMessageObject.toString(), signature)) {
+                if (!checkSignature(rawPublicKey, signMessageObject, signature)) {
                     throw NoPermissionException("Signature does not match")
                 }
 
@@ -66,9 +64,10 @@ fun Application.rootRoutes(storageApi: StorageApi) {
                 } else {
                     context.attributes.put(sessionUserKey, user)
                 }
+                context.attributes.put(receivedBodyKey, body)
             }
         }
 
-        userRoutes(storageApi)
+        userRoutes(storageApi, gson)
     }
 }

@@ -8,10 +8,13 @@ class MemoryStorageApi : StorageApi {
     override val contactApi = ContactMemoryStorageApi()
 }
 
+val contacts = mutableMapOf<Int, UserContact>()
+val users = mutableMapOf<Int, User>()
+val sessions = mutableMapOf<String, Pair<BackendSession, Int>>()
+
 class ContactMemoryStorageApi : ContactStorageApi {
 
     private var currentContactId = 0
-    private val contacts = mutableMapOf<Int, UserContact>()
 
     override suspend fun createContact(contactData: ContactData): UnconfirmedUserContact {
         val contact = UnconfirmedUserContact(currentContactId, contactData, generateVerificationCode())
@@ -21,72 +24,63 @@ class ContactMemoryStorageApi : ContactStorageApi {
     }
 
     override suspend fun confirmContact(contact: UnconfirmedUserContact): ActiveUserContact {
-        contacts[contact.id] = contact
-        return ActiveUserContact(contact.id, contact.data)
+        val newContact = ActiveUserContact(contact.id, contact.data)
+        contacts[contact.id] = newContact
+        return newContact
     }
 }
 
 class UserMemoryStorageApi : UserStorageApi {
 
     private var currentUserId = 0
-    private val users = mutableMapOf<String, Pair<User, BackendSession>>()
 
     override suspend fun getUserBySession(session: BackendSession): User? {
-        return users[session.publicKey]?.first
+        return refreshUser(users[sessions[session.publicKey]?.second])
     }
 
     override suspend fun getUserById(id: Int): User? {
-        return users.values.find { it.first.id == id }?.first
+        return refreshUser(users[id])
+    }
+
+    fun refreshUser(user: User?): User? {
+        return when (user) {
+            is GuestUser -> user
+            is BlankUser -> user.copy(contact = contacts.entries.find { it.key == user.contact.id }!!.value)
+            is ActiveUser -> user.copy(contacts = user.contacts
+                    .map { oldContact -> contacts.entries.find { it.key == oldContact.id }!!.value })
+            null -> null
+        }
     }
 
     override suspend fun createNewGuest(session: BackendSession): GuestUser {
         val user = GuestUser(currentUserId, listOf())
+        users[currentUserId] = user
+        sessions[session.publicKey] = session to user.id
         currentUserId += 1
-        users[session.publicKey] = user to session
         return user
     }
 
     override suspend fun addUserContact(oldUser: GuestUser, contact: UserContact): BlankUser {
-        val key = users.values.find { it.first.id == oldUser.id }?.second?.publicKey
-        if (key != null) {
-            val newUser = BlankUser(oldUser.id, oldUser.permissions, contact)
-            users[key] = newUser to users.getValue(key).second
-            return newUser
-        } else {
-            throw Exception("No such user: ${oldUser.id}")
-        }
+        val newUser = BlankUser(oldUser.id, oldUser.permissions, contact)
+        users[oldUser.id] = newUser
+        return newUser
     }
 
     override suspend fun addUserContact(oldUser: ActiveUser, contact: UserContact): ActiveUser {
-        val key = users.values.find { it.first.id == oldUser.id }?.second?.publicKey
-        if (key != null) {
-            val newUser = oldUser.copy(contacts = oldUser.contacts + contact)
-            users[key] = newUser to users.getValue(key).second
-            return newUser
-        } else {
-            throw Exception("No such user: ${oldUser.id}")
-        }
+        val newUser = oldUser.copy(contacts = oldUser.contacts + contact)
+        users[oldUser.id] = newUser
+        return newUser
     }
 
     override suspend fun fulfillUser(user: BlankUser, data: UserData): ActiveUser {
-        val key = users.values.find { it.first.id == user.id }?.second?.publicKey
-        if (key != null) {
-            val newUser = ActiveUser(id = user.id, permissions = user.permissions, contacts = listOf(user.contact), data = data)
-            users[key] = newUser to users.getValue(key).second
-            return newUser
-        } else {
-            throw Exception("No such user: ${user.id}")
-        }
+        val newUser = ActiveUser(id = user.id, permissions = user.permissions, contacts = listOf(user.contact), data = data)
+        users[user.id] = newUser
+        return newUser
     }
 
     override suspend fun updateUser(user: ActiveUser, newData: UserData): ActiveUser {
-        val key = users.values.find { it.first.id == user.id }?.second?.publicKey
-        if (key != null) {
-            val newUser = user.copy(data = newData)
-            users[key] = newUser to users.getValue(key).second
-            return newUser
-        } else {
-            throw Exception("No such user: ${user.id}")
-        }
+        val newUser = user.copy(data = newData)
+        users[user.id] = newUser
+        return newUser
     }
 }

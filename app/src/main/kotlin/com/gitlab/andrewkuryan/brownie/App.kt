@@ -17,15 +17,17 @@ import java.nio.file.NoSuchFileException
 import java.security.Security
 import javax.naming.NoPermissionException
 
+class ClientException(override val message: String?) : Exception()
+
 fun main() {
     Security.addProvider(BouncyCastleProvider())
 
     val storageApi: StorageApi = MemoryStorageApi()
+    val customGsonConverter = CustomGsonConverter()
 
     embeddedServer(CIO, 3388) {
-        install(DoubleReceive)
         install(ContentNegotiation) {
-            register(ContentType.Application.Json, CustomGsonConverter())
+            register(ContentType.Application.Json, customGsonConverter)
         }
         install(StatusPages) {
             status(HttpStatusCode.NotFound) {
@@ -45,12 +47,13 @@ fun main() {
                 cause.printStackTrace()
                 when (cause) {
                     is NoPermissionException -> call.respond(HttpStatusCode.Forbidden)
+                    is ClientException -> call.respond(HttpStatusCode.BadRequest)
                     else -> call.respond(HttpStatusCode.InternalServerError)
                 }
             }
         }
 
-        rootRoutes(storageApi)
+        rootRoutes(storageApi, customGsonConverter.gson)
         launchTelegramBot(storageApi)
     }.start(wait = true)
 }

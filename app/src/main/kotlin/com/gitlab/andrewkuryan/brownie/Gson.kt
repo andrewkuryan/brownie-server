@@ -27,7 +27,7 @@ class BackendExclusionStrategy : ExclusionStrategy {
 
 class CustomGsonConverter : ContentConverter {
 
-    private val gson = GsonBuilder()
+    val gson = GsonBuilder()
             .addSerializationExclusionStrategy(BackendExclusionStrategy())
             .registerTypeAdapterFactory(SealedClassTypeAdapterFactory())
             .create()

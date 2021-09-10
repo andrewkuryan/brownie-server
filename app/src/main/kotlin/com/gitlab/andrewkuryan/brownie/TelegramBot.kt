@@ -3,6 +3,7 @@ package com.gitlab.andrewkuryan.brownie
 import com.github.kotlintelegrambot.bot
 import com.github.kotlintelegrambot.dispatch
 import com.github.kotlintelegrambot.dispatcher.command
+import com.github.kotlintelegrambot.entities.ChatId
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.GuestUser
 import com.gitlab.andrewkuryan.brownie.entity.TelegramContactData
@@ -26,6 +27,10 @@ fun launchTelegramBot(storageApi: StorageApi) {
                             val contactData = TelegramContactData(tgUserId, tgFirstName, tgUsername)
                             val contact = storageApi.contactApi.createContact(contactData)
                             storageApi.userApi.addUserContact(user, contact)
+                            bot.sendMessage(
+                                    ChatId.fromId(message.chat.id),
+                                    "Your verification code:\n${contact.verificationCode}"
+                            )
                         }
                     }
                 }
