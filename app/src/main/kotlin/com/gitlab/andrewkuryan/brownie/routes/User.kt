@@ -10,6 +10,7 @@ import io.ktor.response.*
 import io.ktor.routing.*
 
 data class VerifyContactBody(val verificationCode: String)
+data class FulfillUserBody(val login: String?, val passwordHash: String, val confirmedPasswordHash: String)
 
 fun Route.userRoutes(storageApi: StorageApi, gson: Gson) {
     get("/api/user") {
@@ -33,6 +34,21 @@ fun Route.userRoutes(storageApi: StorageApi, gson: Gson) {
             call.respond<UserContact>(newContact)
         } else {
             throw ClientException("Wrong verification code: ${code.verificationCode}")
+        }
+    }
+
+    put("/api/user/fulfill") {
+        val user = context.attributes[sessionUserKey]
+        val body = gson.fromJson<FulfillUserBody>(context.attributes[receivedBodyKey])
+        if (body.passwordHash != body.confirmedPasswordHash) {
+            throw ClientException("Passwords do not match")
+        }
+        val data = UserData(body.login, body.passwordHash)
+        if (user is BlankUser) {
+            val newUser = storageApi.userApi.fulfillUser(user, data)
+            call.respond<User>(newUser)
+        } else {
+            throw ClientException("User cannot be fulfilled")
         }
     }
 }
