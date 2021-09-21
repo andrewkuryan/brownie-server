@@ -10,12 +10,6 @@ data class GuestSession(
         val osName: String,
 ) : BackendSession()
 
-data class InitialSession(
-        override val publicKey: String,
-        val browserName: String,
-        val osName: String,
-) : BackendSession()
-
 data class TempSession(
         override val publicKey: String,
         val browserName: String,
@@ -27,5 +21,4 @@ data class ActiveSession(
         override val publicKey: String,
         val browserName: String,
         val osName: String,
-        val KHex: String,
 ) : BackendSession()

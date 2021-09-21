@@ -13,7 +13,7 @@ interface UserStorageApi {
     suspend fun getUserByLogin(login: String): ActiveUser?
 
     suspend fun changeSessionOwner(session: TempSession, newUser: ActiveUser, newSession: ActiveSession): ActiveSession
-    suspend fun updateSession(oldSession: GuestSession, newSession: InitialSession): InitialSession
+    suspend fun updateSession(oldSession: GuestSession, newSession: ActiveSession): ActiveSession
     suspend fun updateSession(oldSession: GuestSession, newSession: TempSession): TempSession
 
     suspend fun createNewGuest(session: BackendSession): GuestUser

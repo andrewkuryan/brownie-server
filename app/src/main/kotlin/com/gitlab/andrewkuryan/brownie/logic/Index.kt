@@ -1,4 +1,4 @@
-package com.gitlab.andrewkuryan.brownie
+package com.gitlab.andrewkuryan.brownie.logic
 
 import java.util.*
 

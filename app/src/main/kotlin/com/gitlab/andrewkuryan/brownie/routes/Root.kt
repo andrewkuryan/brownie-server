@@ -4,6 +4,7 @@ import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.BackendSession
 import com.gitlab.andrewkuryan.brownie.entity.GuestSession
 import com.gitlab.andrewkuryan.brownie.entity.User
+import com.gitlab.andrewkuryan.brownie.logic.SrpGenerator
 import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.request.*
@@ -35,7 +36,7 @@ fun checkSignature(publicKey: String, signMessage: String, signature: String): B
     return ecdsaVerify.verify(Base64.getDecoder().decode(signature))
 }
 
-fun Application.rootRoutes(storageApi: StorageApi, gson: Gson) {
+fun Application.rootRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, gson: Gson) {
     routing {
         intercept(ApplicationCallPipeline.Call) {
             if (call.request.uri.startsWith("/api")) {
@@ -72,6 +73,6 @@ fun Application.rootRoutes(storageApi: StorageApi, gson: Gson) {
             }
         }
 
-        userRoutes(storageApi, gson)
+        userRoutes(storageApi, srpGenerator, gson)
     }
 }

@@ -1,7 +1,7 @@
 package com.gitlab.andrewkuryan.brownie.api
 
 import com.gitlab.andrewkuryan.brownie.entity.*
-import com.gitlab.andrewkuryan.brownie.generateVerificationCode
+import com.gitlab.andrewkuryan.brownie.logic.generateVerificationCode
 
 class MemoryStorageApi : StorageApi {
     override val userApi = UserMemoryStorageApi()
@@ -49,7 +49,7 @@ class UserMemoryStorageApi : UserStorageApi {
         return newSession
     }
 
-    override suspend fun updateSession(oldSession: GuestSession, newSession: InitialSession): InitialSession {
+    override suspend fun updateSession(oldSession: GuestSession, newSession: ActiveSession): ActiveSession {
         if (sessions[oldSession.publicKey] == null) {
             throw Exception("No such session")
         } else {
