@@ -8,9 +8,15 @@ class MemoryStorageApi : StorageApi {
     override val contactApi = ContactMemoryStorageApi()
 }
 
-val contacts = mutableMapOf<Int, UserContact>()
-val users = mutableMapOf<Int, User>()
-val sessions = mutableMapOf<String, Pair<BackendSession, Int>>()
+private val contacts = mutableMapOf<Int, UserContact>()
+private val users = mutableMapOf<Int, User>()
+private val sessions = mutableMapOf<String, Pair<BackendSession, Int>>()
+
+fun dumpDB() {
+    println(users)
+    println(sessions)
+    println(contacts)
+}
 
 class ContactMemoryStorageApi : ContactStorageApi {
 
@@ -34,21 +40,57 @@ class UserMemoryStorageApi : UserStorageApi {
 
     private var currentUserId = 0
 
-    override suspend fun getUserBySession(session: BackendSession): User? {
-        return refreshUser(users[sessions[session.publicKey]?.second])
+    override suspend fun changeSessionOwner(session: TempSession, newUser: ActiveUser, newSession: ActiveSession): ActiveSession {
+        if (sessions[session.publicKey] == null) {
+            throw Exception("No such session")
+        } else {
+            sessions[session.publicKey] = newSession to newUser.id
+        }
+        return newSession
+    }
+
+    override suspend fun updateSession(oldSession: GuestSession, newSession: InitialSession): InitialSession {
+        if (sessions[oldSession.publicKey] == null) {
+            throw Exception("No such session")
+        } else {
+            sessions[newSession.publicKey] = newSession to sessions.getValue(oldSession.publicKey).second
+        }
+        return newSession
+    }
+
+    override suspend fun updateSession(oldSession: GuestSession, newSession: TempSession): TempSession {
+        if (sessions[oldSession.publicKey] == null) {
+            throw Exception("No such session")
+        } else {
+            sessions[newSession.publicKey] = newSession to sessions.getValue(oldSession.publicKey).second
+        }
+        return newSession
+    }
+
+    override suspend fun getUserBySessionKey(publicKey: String): Pair<User, BackendSession>? {
+        val session = sessions[publicKey]
+        return if (session == null) {
+            null
+        } else {
+            refreshUser(users.getValue(session.second)) to session.first
+        }
     }
 
     override suspend fun getUserById(id: Int): User? {
         return refreshUser(users[id])
     }
 
-    fun refreshUser(user: User?): User? {
+    override suspend fun getUserByLogin(login: String): ActiveUser? {
+        return refreshUser(users.values.filterIsInstance<ActiveUser>().find { it.data.login == login })
+    }
+
+    private inline fun <reified T : User?> refreshUser(user: T): T {
         return when (user) {
             is GuestUser -> user
-            is BlankUser -> user.copy(contact = contacts.entries.find { it.key == user.contact.id }!!.value)
+            is BlankUser -> user.copy(contact = contacts.entries.find { it.key == user.contact.id }!!.value) as T
             is ActiveUser -> user.copy(contacts = user.contacts
-                    .map { oldContact -> contacts.entries.find { it.key == oldContact.id }!!.value })
-            null -> null
+                    .map { oldContact -> contacts.entries.find { it.key == oldContact.id }!!.value }) as T
+            else -> user
         }
     }
 
@@ -82,5 +124,10 @@ class UserMemoryStorageApi : UserStorageApi {
         val newUser = user.copy(data = newData)
         users[user.id] = newUser
         return newUser
+    }
+
+    override suspend fun deleteUser(user: User): User {
+        users.remove(user.id)
+        return user
     }
 }

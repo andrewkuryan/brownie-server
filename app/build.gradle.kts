@@ -18,7 +18,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:$coroutinesVersion")
 
     implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-cio:$ktorVersion")
+    implementation("io.ktor:ktor-server-jetty:$ktorVersion")
     implementation("io.ktor:ktor-gson:$ktorVersion")
     implementation("ch.qos.logback:logback-classic:1.2.3")
 
@@ -30,11 +30,12 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
     implementation("com.github.salomonbrys.kotson:kotson:2.5.0")
     implementation("io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram:6.0.5")
+    implementation("commons-codec:commons-codec:1.15")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
 }
 
 application {
-    mainClass.set("com.gitlab.andrewkuryan.brownie.AppKt")
+    mainClass.set("io.ktor.server.jetty.EngineMain")
 }

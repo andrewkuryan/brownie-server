@@ -2,6 +2,7 @@ package com.gitlab.andrewkuryan.brownie.routes
 
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.BackendSession
+import com.gitlab.andrewkuryan.brownie.entity.GuestSession
 import com.gitlab.andrewkuryan.brownie.entity.User
 import com.google.gson.Gson
 import io.ktor.application.*
@@ -19,6 +20,7 @@ import java.util.*
 import javax.naming.NoPermissionException
 
 val sessionUserKey = AttributeKey<User>("SessionUser")
+val sessionKey = AttributeKey<BackendSession>("BackendSession")
 val receivedBodyKey = AttributeKey<String>("ReceivedBody")
 
 fun checkSignature(publicKey: String, signMessage: String, signature: String): Boolean {
@@ -56,13 +58,15 @@ fun Application.rootRoutes(storageApi: StorageApi, gson: Gson) {
                     throw NoPermissionException("Signature does not match")
                 }
 
-                val backendSession = BackendSession(rawPublicKey, browserName, osName)
-                val user = storageApi.userApi.getUserBySession(backendSession)
-                if (user == null) {
+                val userWithSession = storageApi.userApi.getUserBySessionKey(rawPublicKey)
+                if (userWithSession == null) {
+                    val backendSession = GuestSession(rawPublicKey, browserName, osName)
                     val newUser = storageApi.userApi.createNewGuest(backendSession)
                     context.attributes.put(sessionUserKey, newUser)
+                    context.attributes.put(sessionKey, backendSession)
                 } else {
-                    context.attributes.put(sessionUserKey, user)
+                    context.attributes.put(sessionUserKey, userWithSession.first)
+                    context.attributes.put(sessionKey, userWithSession.second)
                 }
                 context.attributes.put(receivedBodyKey, body)
             }

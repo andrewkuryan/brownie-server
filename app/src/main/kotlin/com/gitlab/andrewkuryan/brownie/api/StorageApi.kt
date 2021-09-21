@@ -8,8 +8,13 @@ interface StorageApi {
 }
 
 interface UserStorageApi {
-    suspend fun getUserBySession(session: BackendSession): User?
+    suspend fun getUserBySessionKey(publicKey: String): Pair<User, BackendSession>?
     suspend fun getUserById(id: Int): User?
+    suspend fun getUserByLogin(login: String): ActiveUser?
+
+    suspend fun changeSessionOwner(session: TempSession, newUser: ActiveUser, newSession: ActiveSession): ActiveSession
+    suspend fun updateSession(oldSession: GuestSession, newSession: InitialSession): InitialSession
+    suspend fun updateSession(oldSession: GuestSession, newSession: TempSession): TempSession
 
     suspend fun createNewGuest(session: BackendSession): GuestUser
 
@@ -18,6 +23,8 @@ interface UserStorageApi {
 
     suspend fun fulfillUser(user: BlankUser, data: UserData): ActiveUser
     suspend fun updateUser(user: ActiveUser, newData: UserData): ActiveUser
+
+    suspend fun deleteUser(user: User): User
 }
 
 interface ContactStorageApi {

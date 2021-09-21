@@ -7,3 +7,6 @@ web
 
 gradlew
 gradlew.bat
+
+*.jks
+app/src/main/resources/properties.conf

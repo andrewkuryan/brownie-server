@@ -1,6 +1,7 @@
 package com.gitlab.andrewkuryan.brownie.entity
 
 import com.gitlab.andrewkuryan.brownie.BackendField
+import java.math.BigInteger
 
 enum class Permission {
     READ_UPDATES,
@@ -30,6 +31,11 @@ data class ActiveUser(
 ) : User()
 
 data class UserData(
-        val login: String?,
-        @BackendField val passwordHash: String,
+        val login: String,
+        @BackendField val credentials: UserCredentials,
+)
+
+data class UserCredentials(
+        val salt: String,
+        val verifier: BigInteger,
 )
