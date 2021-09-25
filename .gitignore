@@ -4,9 +4,11 @@ gradle
 .idea
 build
 web
+app/out
 
 gradlew
 gradlew.bat
 
 *.jks
 app/src/main/resources/properties.conf
+app/src/main/resources/generatedProperties.conf

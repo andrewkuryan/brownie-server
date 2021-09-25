@@ -14,7 +14,10 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.math.BigInteger
 import java.nio.file.NoSuchFileException
+import java.security.KeyFactory
 import java.security.Security
+import java.security.spec.PKCS8EncodedKeySpec
+import java.util.*
 import javax.naming.NoPermissionException
 
 class ClientException(override val message: String?) : Exception()
@@ -23,16 +26,26 @@ class ClientException(override val message: String?) : Exception()
 fun Application.main() {
     Security.addProvider(BouncyCastleProvider())
 
+    val kf = KeyFactory.getInstance("EC")
+    val privateKeySpec = PKCS8EncodedKeySpec(
+            Base64.getDecoder().decode(environment.config.property("ktor.security.ecdsa.privateKey").getString())
+    )
+    val privateKey = kf.generatePrivate(privateKeySpec)
+
     val srpGenerator = SrpGenerator(
             BigInteger(environment.config.property("ktor.security.srp.N").getString(), 16),
             environment.config.property("ktor.security.srp.NBitLen").getString().toInt(),
             BigInteger(environment.config.property("ktor.security.srp.g").getString(), 16)
     )
-    val storageApi: StorageApi = MemoryStorageApi()
+    val memoryStorageApi: StorageApi = MemoryStorageApi()
     val customGsonConverter = CustomGsonConverter()
 
     install(ContentNegotiation) {
         register(ContentType.Application.Json, customGsonConverter)
+    }
+    install(SignFeature) {
+        storageApi = memoryStorageApi
+        privateSignKey = privateKey
     }
     install(StatusPages) {
         status(HttpStatusCode.NotFound) {
@@ -58,6 +71,6 @@ fun Application.main() {
         }
     }
 
-    rootRoutes(storageApi, srpGenerator, customGsonConverter.gson)
-    launchTelegramBot(storageApi)
+    rootRoutes(memoryStorageApi, srpGenerator, customGsonConverter.gson)
+    launchTelegramBot(memoryStorageApi)
 }
