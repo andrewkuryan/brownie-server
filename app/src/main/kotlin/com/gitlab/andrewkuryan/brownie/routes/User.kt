@@ -14,9 +14,9 @@ import javax.naming.NoPermissionException
 data class VerifyContactBody(val verificationCode: String)
 
 data class FulfillUserBody(
-        val login: String,
-        val salt: String,
-        val verifierHex: String
+    val login: String,
+    val salt: String,
+    val verifierHex: String
 )
 
 data class LoginInitBody(val login: String, val AHex: String)
@@ -25,10 +25,23 @@ data class LoginInitResponse(val salt: String, val BHex: String)
 data class LoginVerifyBody(val login: String, val AHex: String, val BHex: String, val MHex: String)
 data class LoginVerifyResponse(val RHex: String, val user: User)
 
-fun Route.userRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, gson: Gson) {
+fun Route.userRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, emailService: EmailService, gson: Gson) {
     get("/api/user") {
         val user = getAuthorizedUser()
         call.respond(user)
+    }
+
+    post("/api/user/contact/email") {
+        val user = getAuthorizedUser()
+        val body = receiveVerified<EmailContactData>(gson)
+        if (user is GuestUser) {
+            val contact = storageApi.contactApi.createContact(body)
+            storageApi.userApi.addUserContact(user, contact)
+            emailService.sendVerificationEmail(body, contact.verificationCode)
+            call.respond<UserContact>(contact)
+        } else {
+            throw ClientException("Can't add contact to this user")
+        }
     }
 
     post("/api/user/contact/{id}/verify") {
@@ -88,12 +101,17 @@ fun Route.userRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, gson: G
             val body = receiveVerified<LoginVerifyBody>(gson)
             val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not fount")
             val expectedM = srpGenerator
-                    .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
+                .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
             if (expectedM == body.MHex) {
                 val newSession = ActiveSession(tempSession.publicKey, tempSession.browserName, tempSession.osName)
                 storageApi.userApi.changeSessionOwner(tempSession, user, newSession)
                 storageApi.userApi.deleteUser(guestUser)
-                call.respond(LoginVerifyResponse(srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex), user))
+                call.respond(
+                    LoginVerifyResponse(
+                        srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex),
+                        user
+                    )
+                )
             } else {
                 throw NoPermissionException("Session values does not match")
             }
