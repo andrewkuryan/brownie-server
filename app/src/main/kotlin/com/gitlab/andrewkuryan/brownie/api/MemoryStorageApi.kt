@@ -34,6 +34,12 @@ class ContactMemoryStorageApi : ContactStorageApi {
         contacts[contact.id] = newContact
         return newContact
     }
+
+    override suspend fun regenerateVerificationCode(contact: UnconfirmedUserContact): UnconfirmedUserContact {
+        val newContact = contact.copy(verificationCode = generateVerificationCode())
+        contacts[contact.id] = newContact
+        return newContact
+    }
 }
 
 class UserMemoryStorageApi : UserStorageApi {

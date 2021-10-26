@@ -29,25 +29,29 @@ fun Application.main() {
 
     val kf = KeyFactory.getInstance("EC")
     val privateKeySpec = PKCS8EncodedKeySpec(
-        Base64.getDecoder().decode(environment.config.property("ktor.security.ecdsa.privateKey").getString())
+            Base64.getDecoder().decode(environment.config.property("ktor.security.ecdsa.privateKey").getString())
     )
     val privateKey = kf.generatePrivate(privateKeySpec)
 
     val srpGenerator = SrpGenerator(
-        N = BigInteger(environment.config.property("ktor.security.srp.N").getString(), 16),
-        NBitLen = environment.config.property("ktor.security.srp.NBitLen").getString().toInt(),
-        g = BigInteger(environment.config.property("ktor.security.srp.g").getString(), 16)
+            N = BigInteger(environment.config.property("ktor.security.srp.N").getString(), 16),
+            NBitLen = environment.config.property("ktor.security.srp.NBitLen").getString().toInt(),
+            g = BigInteger(environment.config.property("ktor.security.srp.g").getString(), 16)
     )
     val memoryStorageApi: StorageApi = MemoryStorageApi()
     val customGsonConverter = CustomGsonConverter()
     val emailService = EmailService(
-        smtpServer = environment.config.property("ktor.smtp.server").getString(),
-        smtpServerPort = environment.config.property("ktor.smtp.port").getString().toInt(),
-        smtpServerUsername = environment.config.property("ktor.smtp.username").getString(),
-        smtpServerPassword = environment.config.property("ktor.smtp.password").getString(),
-        senderName = environment.config.property("ktor.smtp.senderName").getString(),
-        senderEmail = environment.config.property("ktor.smtp.senderEmail").getString(),
-        templatesRoot = Paths.get("src/main/resources/mail")
+            smtpServer = environment.config.property("ktor.smtp.server").getString(),
+            smtpServerPort = environment.config.property("ktor.smtp.port").getString().toInt(),
+            smtpServerUsername = environment.config.property("ktor.smtp.username").getString(),
+            smtpServerPassword = environment.config.property("ktor.smtp.password").getString(),
+            senderName = environment.config.property("ktor.smtp.senderName").getString(),
+            senderEmail = environment.config.property("ktor.smtp.senderEmail").getString(),
+            templatesRoot = Paths.get("src/main/resources/mail")
+    )
+    val telegramApi = TelegramApi(
+            memoryStorageApi,
+            environment.config.property("ktor.telegram.botToken").getString()
     )
 
     install(ContentNegotiation) {
@@ -61,7 +65,7 @@ fun Application.main() {
         status(HttpStatusCode.NotFound) {
             try {
                 call.respondFile(
-                    File("web/${call.request.uri.split("/").last()}")
+                        File("web/${call.request.uri.split("/").last()}")
                 )
             } catch (exc: Exception) {
                 when (exc) {
@@ -74,13 +78,12 @@ fun Application.main() {
         exception<Throwable> { cause ->
             cause.printStackTrace()
             when (cause) {
-                is NoPermissionException -> call.respond(HttpStatusCode.Forbidden)
-                is ClientException -> call.respond(HttpStatusCode.BadRequest)
-                else -> call.respond(HttpStatusCode.InternalServerError)
+                is NoPermissionException -> call.respond(HttpStatusCode.Forbidden, cause.message ?: "No Permission")
+                is ClientException -> call.respond(HttpStatusCode.BadRequest, cause.message ?: "Bad Request")
+                else -> call.respond(HttpStatusCode.InternalServerError, cause.message ?: "Interval Server Error")
             }
         }
     }
 
-    rootRoutes(memoryStorageApi, srpGenerator, emailService, customGsonConverter.gson)
-    launchTelegramBot(memoryStorageApi)
+    rootRoutes(memoryStorageApi, srpGenerator, emailService, telegramApi, customGsonConverter.gson)
 }

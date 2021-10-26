@@ -14,9 +14,9 @@ import javax.naming.NoPermissionException
 data class VerifyContactBody(val verificationCode: String)
 
 data class FulfillUserBody(
-    val login: String,
-    val salt: String,
-    val verifierHex: String
+        val login: String,
+        val salt: String,
+        val verifierHex: String
 )
 
 data class LoginInitBody(val login: String, val AHex: String)
@@ -25,7 +25,13 @@ data class LoginInitResponse(val salt: String, val BHex: String)
 data class LoginVerifyBody(val login: String, val AHex: String, val BHex: String, val MHex: String)
 data class LoginVerifyResponse(val RHex: String, val user: User)
 
-fun Route.userRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, emailService: EmailService, gson: Gson) {
+fun Route.userRoutes(
+        storageApi: StorageApi,
+        srpGenerator: SrpGenerator,
+        emailService: EmailService,
+        telegramApi: TelegramApi,
+        gson: Gson
+) {
     get("/api/user") {
         val user = getAuthorizedUser()
         call.respond(user)
@@ -41,6 +47,20 @@ fun Route.userRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, emailSe
             call.respond<UserContact>(contact)
         } else {
             throw ClientException("Can't add contact to this user")
+        }
+    }
+
+    post("/api/user/contact/resend-code") {
+        val user = getAuthorizedUser()
+        if (user is BlankUser && user.contact is UnconfirmedUserContact) {
+            val newContact = storageApi.contactApi.regenerateVerificationCode(user.contact)
+            when (newContact.data) {
+                is EmailContactData -> emailService.sendVerificationEmail(newContact.data, newContact.verificationCode)
+                is TelegramContactData -> telegramApi.sendVerificationCode(newContact.data, newContact.verificationCode)
+            }
+            call.respond<UserContact>(newContact)
+        } else {
+            throw ClientException("User don't have unconfirmed contact")
         }
     }
 
@@ -101,16 +121,16 @@ fun Route.userRoutes(storageApi: StorageApi, srpGenerator: SrpGenerator, emailSe
             val body = receiveVerified<LoginVerifyBody>(gson)
             val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not fount")
             val expectedM = srpGenerator
-                .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
+                    .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
             if (expectedM == body.MHex) {
                 val newSession = ActiveSession(tempSession.publicKey, tempSession.browserName, tempSession.osName)
                 storageApi.userApi.changeSessionOwner(tempSession, user, newSession)
                 storageApi.userApi.deleteUser(guestUser)
                 call.respond(
-                    LoginVerifyResponse(
-                        srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex),
-                        user
-                    )
+                        LoginVerifyResponse(
+                                srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex),
+                                user
+                        )
                 )
             } else {
                 throw NoPermissionException("Session values does not match")

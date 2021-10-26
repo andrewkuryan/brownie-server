@@ -11,9 +11,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-fun launchTelegramBot(storageApi: StorageApi) {
-    val bot = bot {
-        token = "1803769708:AAFXgXBqP2x6W4jRMq8BSSTIQlf_eMyELio"
+class TelegramApi(storageApi: StorageApi, botToken: String) {
+
+    private val bot = bot {
+        token = botToken
         dispatch {
             command("start") {
                 val userId = message.text?.removePrefix("/start userId-")?.toIntOrNull()
@@ -27,15 +28,22 @@ fun launchTelegramBot(storageApi: StorageApi) {
                             val contactData = TelegramContactData(tgUserId, tgFirstName, tgUsername)
                             val contact = storageApi.contactApi.createContact(contactData)
                             storageApi.userApi.addUserContact(user, contact)
-                            bot.sendMessage(
-                                    ChatId.fromId(message.chat.id),
-                                    "Your verification code:\n${contact.verificationCode}"
-                            )
+                            sendVerificationCode(contactData, contact.verificationCode)
                         }
                     }
                 }
             }
         }
     }
-    bot.startPolling()
+
+    init {
+        bot.startPolling()
+    }
+
+    fun sendVerificationCode(contactData: TelegramContactData, verificationCode: String) {
+        bot.sendMessage(
+                ChatId.fromId(contactData.telegramId),
+                "Your verification code:\n${verificationCode}"
+        )
+    }
 }

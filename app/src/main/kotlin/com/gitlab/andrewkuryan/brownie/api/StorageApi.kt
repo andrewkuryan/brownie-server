@@ -30,4 +30,5 @@ interface UserStorageApi {
 interface ContactStorageApi {
     suspend fun createContact(contactData: ContactData): UnconfirmedUserContact
     suspend fun confirmContact(contact: UnconfirmedUserContact): ActiveUserContact
+    suspend fun regenerateVerificationCode(contact: UnconfirmedUserContact): UnconfirmedUserContact
 }
