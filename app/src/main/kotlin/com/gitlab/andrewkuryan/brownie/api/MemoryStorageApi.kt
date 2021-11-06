@@ -73,6 +73,11 @@ class UserMemoryStorageApi : UserStorageApi {
         return newSession
     }
 
+    override suspend fun deleteSession(session: BackendSession): BackendSession {
+        sessions.remove(session.publicKey)
+        return session
+    }
+
     override suspend fun getUserBySessionKey(publicKey: String): Pair<User, BackendSession>? {
         val session = sessions[publicKey]
         return if (session == null) {

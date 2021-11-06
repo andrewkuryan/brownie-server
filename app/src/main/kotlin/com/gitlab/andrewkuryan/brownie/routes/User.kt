@@ -6,6 +6,7 @@ import com.gitlab.andrewkuryan.brownie.entity.*
 import com.gitlab.andrewkuryan.brownie.logic.SrpGenerator
 import com.google.gson.Gson
 import io.ktor.application.*
+import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import java.math.BigInteger
@@ -138,5 +139,11 @@ fun Route.userRoutes(
         } else {
             throw ClientException("Session is already in use")
         }
+    }
+
+    post("/api/user/logout") {
+        val session = getSession()
+        storageApi.userApi.deleteSession(session)
+        call.respond(HttpStatusCode.OK)
     }
 }

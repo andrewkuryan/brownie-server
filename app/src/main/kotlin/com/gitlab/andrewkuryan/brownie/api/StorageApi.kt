@@ -15,6 +15,7 @@ interface UserStorageApi {
     suspend fun changeSessionOwner(session: TempSession, newUser: ActiveUser, newSession: ActiveSession): ActiveSession
     suspend fun updateSession(oldSession: GuestSession, newSession: ActiveSession): ActiveSession
     suspend fun updateSession(oldSession: GuestSession, newSession: TempSession): TempSession
+    suspend fun deleteSession(session: BackendSession): BackendSession
 
     suspend fun createNewGuest(session: BackendSession): GuestUser
 
