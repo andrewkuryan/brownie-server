@@ -13,29 +13,48 @@ sealed class User {
 }
 
 data class GuestUser(
-        override val id: Int,
-        override val permissions: List<Permission>,
+    override val id: Int,
+    override val permissions: List<Permission>,
 ) : User()
 
 data class BlankUser(
-        override val id: Int,
-        override val permissions: List<Permission>,
-        val contact: UserContact,
+    override val id: Int,
+    override val permissions: List<Permission>,
+    val contact: UserContact,
 ) : User()
 
 data class ActiveUser(
-        override val id: Int,
-        override val permissions: List<Permission>,
-        val contacts: List<UserContact>,
-        val data: UserData,
+    override val id: Int,
+    override val permissions: List<Permission>,
+    val contacts: List<UserContact>,
+    val data: UserData,
+    val publicItems: List<UserPublicItemType>,
 ) : User()
 
 data class UserData(
-        val login: String,
-        @BackendField val credentials: UserCredentials,
+    val login: String,
+    @BackendField val credentials: UserCredentials,
 )
 
 data class UserCredentials(
-        val salt: String,
-        val verifier: BigInteger,
+    val salt: String,
+    val verifier: BigInteger,
 )
+
+enum class UserPublicItemType {
+    ID, LOGIN, CONTACTS
+}
+
+sealed class UserPublicItem {
+    data class ID(val value: Int) : UserPublicItem()
+    data class Login(val value: String) : UserPublicItem()
+    data class Contacts(val value: List<ActiveUserContact>) : UserPublicItem()
+}
+
+fun ActiveUser.getPublicInfo() = publicItems.map {
+    when (it) {
+        UserPublicItemType.ID -> UserPublicItem.ID(id)
+        UserPublicItemType.LOGIN -> UserPublicItem.Login(data.login)
+        UserPublicItemType.CONTACTS -> UserPublicItem.Contacts(contacts.filterIsInstance<ActiveUserContact>())
+    }
+}

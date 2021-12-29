@@ -9,13 +9,15 @@ import io.ktor.application.*
 import io.ktor.routing.*
 
 fun Application.rootRoutes(
-        storageApi: StorageApi,
-        srpGenerator: SrpGenerator,
-        emailService: EmailService,
-        telegramApi: TelegramApi,
-        gson: Gson
+    storageApi: StorageApi,
+    srpGenerator: SrpGenerator,
+    emailService: EmailService,
+    telegramApi: TelegramApi,
+    gson: Gson
 ) {
     routing {
         userRoutes(storageApi, srpGenerator, emailService, telegramApi, gson)
+        postRoutes(storageApi, gson)
+        fileRoutes(storageApi, gson)
     }
 }

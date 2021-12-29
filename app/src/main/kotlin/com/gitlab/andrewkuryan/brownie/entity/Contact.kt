@@ -8,17 +8,31 @@ sealed class UserContact {
 }
 
 data class UnconfirmedUserContact(
-        override val id: Int,
-        override val data: ContactData,
-        @BackendField val verificationCode: String
+    override val id: Int,
+    override val data: ContactData,
+    @BackendField val verificationCode: String
 ) : UserContact()
 
 data class ActiveUserContact(
-        override val id: Int,
-        override val data: ContactData
+    override val id: Int,
+    override val data: ContactData
 ) : UserContact()
 
-sealed class ContactData
+sealed class ContactData {
+    abstract val identifier: ContactUniqueKey
+}
 
-data class EmailContactData(val emailAddress: String) : ContactData()
-data class TelegramContactData(val telegramId: Long, val firstName: String, val username: String?) : ContactData()
+data class EmailContactData(val emailAddress: String) : ContactData() {
+    override val identifier: ContactUniqueKey
+        get() = EmailContactKey(emailAddress)
+}
+
+data class TelegramContactData(val telegramId: Long, val firstName: String, val username: String?) : ContactData() {
+    override val identifier: ContactUniqueKey
+        get() = TelegramContactKey(telegramId)
+}
+
+sealed class ContactUniqueKey
+
+data class EmailContactKey(val emailAddress: String) : ContactUniqueKey()
+data class TelegramContactKey(val telegramId: Long) : ContactUniqueKey()

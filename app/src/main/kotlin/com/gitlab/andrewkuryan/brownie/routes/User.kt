@@ -15,9 +15,9 @@ import javax.naming.NoPermissionException
 data class VerifyContactBody(val verificationCode: String)
 
 data class FulfillUserBody(
-        val login: String,
-        val salt: String,
-        val verifierHex: String
+    val login: String,
+    val salt: String,
+    val verifierHex: String
 )
 
 data class LoginInitBody(val login: String, val AHex: String)
@@ -27,11 +27,11 @@ data class LoginVerifyBody(val login: String, val AHex: String, val BHex: String
 data class LoginVerifyResponse(val RHex: String, val user: User)
 
 fun Route.userRoutes(
-        storageApi: StorageApi,
-        srpGenerator: SrpGenerator,
-        emailService: EmailService,
-        telegramApi: TelegramApi,
-        gson: Gson
+    storageApi: StorageApi,
+    srpGenerator: SrpGenerator,
+    emailService: EmailService,
+    telegramApi: TelegramApi,
+    gson: Gson
 ) {
     get("/api/user") {
         val user = getAuthorizedUser()
@@ -105,7 +105,7 @@ fun Route.userRoutes(
         val guestSession = getSession()
         if (guestUser is GuestUser && guestSession is GuestSession) {
             val body = receiveVerified<LoginInitBody>(gson)
-            val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not fount")
+            val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not found")
             val (KHex, B) = srpGenerator.computeKHexB(BigInteger(body.AHex, 16), user.data.credentials.verifier)
             val newSession = TempSession(guestSession.publicKey, guestSession.browserName, guestSession.osName, KHex)
             storageApi.userApi.updateSession(guestSession, newSession)
@@ -122,16 +122,16 @@ fun Route.userRoutes(
             val body = receiveVerified<LoginVerifyBody>(gson)
             val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not fount")
             val expectedM = srpGenerator
-                    .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
+                .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
             if (expectedM == body.MHex) {
                 val newSession = ActiveSession(tempSession.publicKey, tempSession.browserName, tempSession.osName)
                 storageApi.userApi.changeSessionOwner(tempSession, user, newSession)
                 storageApi.userApi.deleteUser(guestUser)
                 call.respond(
-                        LoginVerifyResponse(
-                                srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex),
-                                user
-                        )
+                    LoginVerifyResponse(
+                        srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex),
+                        user
+                    )
                 )
             } else {
                 throw NoPermissionException("Session values does not match")
@@ -145,5 +145,15 @@ fun Route.userRoutes(
         val session = getSession()
         storageApi.userApi.deleteSession(session)
         call.respond(HttpStatusCode.OK)
+    }
+
+    get("/api/user/{id}/info") {
+        val userId = call.parameters["id"]?.toInt() ?: -1
+        val info = storageApi.userApi.getUserPublicInfo(userId)
+        if (info != null) {
+            call.respond(info)
+        } else {
+            throw ClientException("No such user")
+        }
     }
 }

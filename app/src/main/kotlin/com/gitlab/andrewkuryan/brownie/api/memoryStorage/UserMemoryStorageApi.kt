@@ -1,52 +1,20 @@
-package com.gitlab.andrewkuryan.brownie.api
+package com.gitlab.andrewkuryan.brownie.api.memoryStorage
 
+import com.gitlab.andrewkuryan.brownie.api.UserStorageApi
 import com.gitlab.andrewkuryan.brownie.entity.*
-import com.gitlab.andrewkuryan.brownie.logic.generateVerificationCode
 
-class MemoryStorageApi : StorageApi {
-    override val userApi = UserMemoryStorageApi()
-    override val contactApi = ContactMemoryStorageApi()
-}
-
-private val contacts = mutableMapOf<Int, UserContact>()
-private val users = mutableMapOf<Int, User>()
-private val sessions = mutableMapOf<String, Pair<BackendSession, Int>>()
-
-fun dumpDB() {
-    println(users)
-    println(sessions)
-    println(contacts)
-}
-
-class ContactMemoryStorageApi : ContactStorageApi {
-
-    private var currentContactId = 0
-
-    override suspend fun createContact(contactData: ContactData): UnconfirmedUserContact {
-        val contact = UnconfirmedUserContact(currentContactId, contactData, generateVerificationCode())
-        contacts[contact.id] = contact
-        currentContactId += 1
-        return contact
-    }
-
-    override suspend fun confirmContact(contact: UnconfirmedUserContact): ActiveUserContact {
-        val newContact = ActiveUserContact(contact.id, contact.data)
-        contacts[contact.id] = newContact
-        return newContact
-    }
-
-    override suspend fun regenerateVerificationCode(contact: UnconfirmedUserContact): UnconfirmedUserContact {
-        val newContact = contact.copy(verificationCode = generateVerificationCode())
-        contacts[contact.id] = newContact
-        return newContact
-    }
-}
+internal val sessions = mutableMapOf<String, Pair<BackendSession, Int>>()
+internal val users = mutableMapOf<Int, User>()
 
 class UserMemoryStorageApi : UserStorageApi {
 
-    private var currentUserId = 0
+    var currentUserId = 0
 
-    override suspend fun changeSessionOwner(session: TempSession, newUser: ActiveUser, newSession: ActiveSession): ActiveSession {
+    override suspend fun changeSessionOwner(
+        session: TempSession,
+        newUser: ActiveUser,
+        newSession: ActiveSession
+    ): ActiveSession {
         if (sessions[session.publicKey] == null) {
             throw Exception("No such session")
         } else {
@@ -95,12 +63,17 @@ class UserMemoryStorageApi : UserStorageApi {
         return refreshUser(users.values.filterIsInstance<ActiveUser>().find { it.data.login == login })
     }
 
+    override suspend fun getUserByContact(contact: ActiveUserContact): ActiveUser? {
+        return users.values.filterIsInstance<ActiveUser>().map { refreshUser(it) }
+            .find { it.contacts.any { c -> c.id == contact.id } }
+    }
+
     private inline fun <reified T : User?> refreshUser(user: T): T {
         return when (user) {
             is GuestUser -> user
             is BlankUser -> user.copy(contact = contacts.entries.find { it.key == user.contact.id }!!.value) as T
             is ActiveUser -> user.copy(contacts = user.contacts
-                    .map { oldContact -> contacts.entries.find { it.key == oldContact.id }!!.value }) as T
+                .map { oldContact -> contacts.entries.find { it.key == oldContact.id }!!.value }) as T
             else -> user
         }
     }
@@ -126,7 +99,14 @@ class UserMemoryStorageApi : UserStorageApi {
     }
 
     override suspend fun fulfillUser(user: BlankUser, data: UserData): ActiveUser {
-        val newUser = ActiveUser(id = user.id, permissions = user.permissions, contacts = listOf(user.contact), data = data)
+        val newUser =
+            ActiveUser(
+                id = user.id,
+                permissions = user.permissions,
+                contacts = listOf(user.contact),
+                data = data,
+                publicItems = listOf(UserPublicItemType.ID, UserPublicItemType.LOGIN)
+            )
         users[user.id] = newUser
         return newUser
     }
@@ -140,5 +120,14 @@ class UserMemoryStorageApi : UserStorageApi {
     override suspend fun deleteUser(user: User): User {
         users.remove(user.id)
         return user
+    }
+
+    override suspend fun getUserPublicInfo(id: Int): List<UserPublicItem>? {
+        val user = users[id]
+        return if (user != null && user is ActiveUser) {
+            user.getPublicInfo()
+        } else {
+            null
+        }
     }
 }

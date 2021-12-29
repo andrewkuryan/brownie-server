@@ -4,9 +4,12 @@ import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.BackendSession
 import com.gitlab.andrewkuryan.brownie.entity.GuestSession
 import com.gitlab.andrewkuryan.brownie.entity.User
+import com.gitlab.andrewkuryan.brownie.routes.fileChecksumKey
 import com.google.gson.Gson
 import io.ktor.application.*
 import io.ktor.content.*
+import io.ktor.content.TextContent
+import io.ktor.http.content.*
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -44,7 +47,7 @@ fun checkSignature(publicKey: String, signMessage: String, signature: String): B
     val pk = kf.generatePublic(publicKeySpec)
 
     val ecdsaVerify = Signature
-            .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
+        .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
     ecdsaVerify.initVerify(pk)
     ecdsaVerify.update(signMessage.toByteArray())
     return ecdsaVerify.verify(Base64.getDecoder().decode(signature))
@@ -52,7 +55,7 @@ fun checkSignature(publicKey: String, signMessage: String, signature: String): B
 
 fun createSignature(privateKey: PrivateKey, signMessage: String): String {
     val ecdsaSign = Signature
-            .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
+        .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
     ecdsaSign.initSign(privateKey)
     ecdsaSign.update(signMessage.toByteArray())
     return Base64.getEncoder().encodeToString(ecdsaSign.sign())
@@ -61,7 +64,7 @@ fun createSignature(privateKey: PrivateKey, signMessage: String): String {
 class SignFeature(configuration: Configuration) {
     val storageApi: StorageApi = configuration.storageApi ?: throw Exception("StorageApi not specified")
     val privateSignKey: PrivateKey = configuration.privateSignKey
-            ?: throw Exception("Private key for sign not specified")
+        ?: throw Exception("Private key for sign not specified")
 
     class Configuration {
         var storageApi: StorageApi? = null
@@ -80,9 +83,16 @@ class SignFeature(configuration: Configuration) {
                     val signMessageObject = """
                     |{"url":"${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"method":"${call.request.httpMethod.value}"
-                    |${if (subject is TextContent) ",\"body\":${subject.text}" else ""}}""".trimMargin()
-                            .trim()
-                            .replace("\n", "")
+                    |${
+                        when (subject) {
+                            is TextContent -> ",\"body\":${subject.text}"
+                            is LocalFileContent -> ",\"checksum\":\"${call.attributes[fileChecksumKey]}\""
+                            else -> ""
+                        }
+                    }}"""
+                        .trimMargin()
+                        .trim()
+                        .replace("\n", "")
 
                     val signature = createSignature(feature.privateSignKey, signMessageObject)
 
@@ -103,8 +113,8 @@ class SignFeature(configuration: Configuration) {
                     |"osName":"$osName",
                     |"method":"${call.request.httpMethod.value}"
                     |${if (body.isNotEmpty()) ",\"body\":${body}" else ""}}""".trimMargin()
-                            .trim()
-                            .replace("\n", "")
+                        .trim()
+                        .replace("\n", "")
 
                     if (!checkSignature(rawPublicKey, signMessageObject, signature)) {
                         throw NoPermissionException("Signature does not match")
