@@ -39,7 +39,7 @@ class SrpGenerator(private val N: BigInteger, private val NBitLen: Int, private 
         return DigestUtils.sha3_512Hex(A + MHex + KHex)
     }
 
-    fun computeU(A: BigInteger, B: BigInteger): BigInteger {
+    private fun computeU(A: BigInteger, B: BigInteger): BigInteger {
         val aHex = A.toString(16)
         val bHex = B.toString(16)
         val nLen = 2 * ((NBitLen + 7) shr 3)

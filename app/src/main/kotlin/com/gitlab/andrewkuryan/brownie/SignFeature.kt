@@ -57,7 +57,7 @@ fun createSignature(privateKey: PrivateKey, signMessage: String): String {
     val ecdsaSign = Signature
         .getInstance("SHA512withPLAIN-ECDSA", BouncyCastleProvider.PROVIDER_NAME)
     ecdsaSign.initSign(privateKey)
-    ecdsaSign.update(signMessage.toByteArray())
+    ecdsaSign.update(signMessage.toByteArray(charset = Charsets.UTF_8))
     return Base64.getEncoder().encodeToString(ecdsaSign.sign())
 }
 

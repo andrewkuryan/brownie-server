@@ -1,6 +1,8 @@
 package com.gitlab.andrewkuryan.brownie.api.memoryStorage
 
+import com.gitlab.andrewkuryan.brownie.api.CategoryStorageApi
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
+import com.gitlab.andrewkuryan.brownie.api.TagStorageApi
 import com.gitlab.andrewkuryan.brownie.entity.*
 import java.math.BigInteger
 
@@ -9,6 +11,8 @@ class MemoryStorageApi : StorageApi {
     override val contactApi = ContactMemoryStorageApi()
     override val postApi = PostMemoryStorageApi()
     override val fileApi = FileMemoryStorageApi()
+    override val categoryApi = CategoryMemoryStorageApi()
+    override val tagApi = TagMemoryStorageApi()
 
     init {
         contacts[0] = ActiveUserContact(
@@ -46,6 +50,67 @@ class MemoryStorageApi : StorageApi {
 
         fileApi.currentFileId = 1
         files[0] = StorageFile(0, 172279, StorageFileFormat.JPG, "")
+
+        categoryApi.currentCategoryId = 4
+        categories[0] = Category.Unclassified
+        categories[1] = Category.TopLevel(1, CategoryData.TopLevel("Programming", MetadataScope.Global))
+        categories[2] = Category.TopLevel(2, CategoryData.TopLevel("Bicycles", MetadataScope.Global))
+        categories[3] = Category.Secondary(
+            3,
+            CategoryData.Secondary("Mobile Development", MetadataScope.Global, categories.getValue(1))
+        )
+        categories[4] = Category.Secondary(
+            4,
+            CategoryData.Secondary("System Development", MetadataScope.Global, categories.getValue(1))
+        )
+
+        tagTypes["Content Type"] = TagType("Content Type", Category.Unclassified, MetadataScope.Global)
+        tagTypes["Organization"] = TagType("Organization", Category.Unclassified, MetadataScope.Global)
+        tagTypes["Personality"] = TagType("Personality", Category.Unclassified, MetadataScope.Global)
+        tagTypes["Programming Language"] = TagType("Programming Language", categories.getValue(1), MetadataScope.Global)
+
+        tags["News"] = Tag(
+            tagTypes.getValue("Content Type"),
+            "News",
+            Category.Unclassified,
+            TagColor.RGB(208, 73, 6),
+            MetadataScope.Global
+        )
+        tags["Book"] = Tag(
+            tagTypes.getValue("Content Type"),
+            "Book",
+            Category.Unclassified,
+            TagColor.RGB(215, 160, 89),
+            MetadataScope.Global
+        )
+        tags["Mem"] = Tag(
+            tagTypes.getValue("Content Type"),
+            "Mem",
+            Category.Unclassified,
+            TagColor.RGB(166, 79, 188),
+            MetadataScope.Global
+        )
+        tags["Jet Brains"] = Tag(
+            tagTypes.getValue("Organization"),
+            "Jet Brains",
+            categories.getValue(1),
+            TagColor.RGB(235, 62, 125),
+            MetadataScope.Global
+        )
+        tags["Linus Torvalds"] = Tag(
+            tagTypes.getValue("Personality"),
+            "Linus Torvalds",
+            categories.getValue(4),
+            TagColor.RGB(132, 132, 132),
+            MetadataScope.Global
+        )
+        tags["Kotlin"] = Tag(
+            tagTypes.getValue("Programming Language"),
+            "Kotlin",
+            categories.getValue(1),
+            TagColor.RGB(144, 72, 235),
+            MetadataScope.Global
+        )
     }
 }
 

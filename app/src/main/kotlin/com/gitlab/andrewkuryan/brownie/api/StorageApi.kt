@@ -8,6 +8,8 @@ interface StorageApi {
     val userApi: UserStorageApi
     val contactApi: ContactStorageApi
     val postApi: PostStorageApi
+    val categoryApi: CategoryStorageApi
+    val tagApi: TagStorageApi
     val fileApi: FileStorageApi
 }
 
@@ -43,16 +45,28 @@ interface ContactStorageApi {
 }
 
 interface PostStorageApi {
-    suspend fun initNewPost(author: ActiveUser): PostBlank.Initialized
-    suspend fun addPostTitle(post: PostBlank.Initialized, title: String): PostBlank.Filling
-    suspend fun addPostParagraph(post: PostBlank.Filling, paragraph: Paragraph): PostBlank.Filling
-    suspend fun completePost(post: PostBlank.Filling): Post
+    suspend fun initNewPost(author: ActiveUser): InitializedPost
+    suspend fun addPostTitle(post: InitializedPost, title: String): FillingPost
+    suspend fun addPostParagraph(post: FillingPost, paragraph: Paragraph): FillingPost
+    suspend fun addPostCategory(post: FillingPost, category: Category): CategorizingPost
+    suspend fun changePostCategory(post: CategorizingPost, newCategory: Category): CategorizingPost
+    suspend fun addPostTags(post: CategorizingPost, tags: List<Tag>): TaggablePost
+    suspend fun replacePostTags(post: TaggablePost, newTags: List<Tag>): TaggablePost
+    suspend fun completePost(post: TaggablePost): ActivePost
 
-    suspend fun deletePost(post: PostBlank): PostBlank
     suspend fun deletePost(post: Post): Post
 
     suspend fun getPostById(id: Int): Post?
-    suspend fun getUserPostBlank(user: ActiveUser): PostBlank?
+    suspend fun getUserPostBlank(user: ActiveUser): NotCompletedPost?
+}
+
+interface CategoryStorageApi {
+    suspend fun searchCategories(filter: Filter<Category>): List<Category>
+}
+
+interface TagStorageApi {
+    suspend fun searchTags(filter: Filter<Tag>): List<Tag>
+    suspend fun getTagByName(name: String): Tag?
 }
 
 interface FileStorageApi {

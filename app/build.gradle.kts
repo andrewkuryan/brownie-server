@@ -40,6 +40,7 @@ dependencies {
     // Utilities
     implementation("com.github.salomonbrys.kotson:kotson:2.5.0")
     implementation("io.github.kotlin-telegram-bot.kotlin-telegram-bot:telegram:6.0.5")
+    implementation("io.arrow-kt:arrow-core:1.0.1")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")

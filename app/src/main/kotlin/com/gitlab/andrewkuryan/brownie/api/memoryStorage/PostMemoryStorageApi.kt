@@ -1,17 +1,14 @@
 package com.gitlab.andrewkuryan.brownie.api.memoryStorage
 
 import com.gitlab.andrewkuryan.brownie.api.PostStorageApi
-import com.gitlab.andrewkuryan.brownie.entity.ActiveUser
-import com.gitlab.andrewkuryan.brownie.entity.Post
-import com.gitlab.andrewkuryan.brownie.entity.PostBlank
-import com.gitlab.andrewkuryan.brownie.entity.Paragraph
+import com.gitlab.andrewkuryan.brownie.entity.*
 import java.util.*
 
 typealias PostId = Int
 typealias UserId = Int
 
-internal val posts = mutableMapOf<PostId, Pair<UserId, Post>>()
-internal val postBlanks = mutableMapOf<UserId, PostBlank>()
+internal val posts = mutableMapOf<PostId, Pair<UserId, ActivePost>>()
+internal val postBlanks = mutableMapOf<UserId, NotCompletedPost>()
 
 class PostMemoryStorageApi : PostStorageApi {
 
@@ -21,17 +18,17 @@ class PostMemoryStorageApi : PostStorageApi {
         return posts[id]?.second
     }
 
-    override suspend fun initNewPost(author: ActiveUser): PostBlank.Initialized {
-        val newPost = PostBlank.Initialized(currentPostId, author.id)
+    override suspend fun initNewPost(author: ActiveUser): InitializedPost {
+        val newPost = InitializedPost(currentPostId, author.id)
         postBlanks[author.id] = newPost
         currentPostId += 1
         return newPost
     }
 
-    override suspend fun addPostTitle(post: PostBlank.Initialized, title: String): PostBlank.Filling {
+    override suspend fun addPostTitle(post: InitializedPost, title: String): FillingPost {
         val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
         if (authorId != null) {
-            val newPost = PostBlank.Filling(post.id, post.authorId, title, listOf())
+            val newPost = FillingPost(post.id, post.authorId, title, listOf())
             postBlanks[authorId] = newPost
             return newPost
         } else {
@@ -39,7 +36,7 @@ class PostMemoryStorageApi : PostStorageApi {
         }
     }
 
-    override suspend fun addPostParagraph(post: PostBlank.Filling, paragraph: Paragraph): PostBlank.Filling {
+    override suspend fun addPostParagraph(post: FillingPost, paragraph: Paragraph): FillingPost {
         val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
         if (authorId != null) {
             val newPost = post.copy(paragraphs = post.paragraphs + paragraph)
@@ -50,10 +47,55 @@ class PostMemoryStorageApi : PostStorageApi {
         }
     }
 
-    override suspend fun completePost(post: PostBlank.Filling): Post {
+    override suspend fun addPostCategory(post: FillingPost, category: Category): CategorizingPost {
         val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
         if (authorId != null) {
-            val newPost = Post(post.id, post.title, post.paragraphs, Date(), post.authorId)
+            val newPost = CategorizingPost(post.id, post.authorId, post.title, post.paragraphs, category)
+            postBlanks[authorId] = newPost
+            return newPost
+        } else {
+            throw Exception("No such post")
+        }
+    }
+
+    override suspend fun changePostCategory(post: CategorizingPost, newCategory: Category): CategorizingPost {
+        val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
+        if (authorId != null) {
+            val newPost = post.copy(category = newCategory)
+            postBlanks[authorId] = newPost
+            return newPost
+        } else {
+            throw Exception("No such post")
+        }
+    }
+
+    override suspend fun addPostTags(post: CategorizingPost, tags: List<Tag>): TaggablePost {
+        val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
+        if (authorId != null) {
+            val newPost = TaggablePost(post.id, post.authorId, post.title, post.paragraphs, post.category, tags)
+            postBlanks[authorId] = newPost
+            return newPost
+        } else {
+            throw Exception("No such post")
+        }
+    }
+
+    override suspend fun replacePostTags(post: TaggablePost, newTags: List<Tag>): TaggablePost {
+        val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
+        if (authorId != null) {
+            val newPost = post.copy(tags = newTags)
+            postBlanks[authorId] = newPost
+            return newPost
+        } else {
+            throw Exception("No such post")
+        }
+    }
+
+    override suspend fun completePost(post: TaggablePost): ActivePost {
+        val authorId = postBlanks.entries.find { it.value.id == post.id }?.key
+        if (authorId != null) {
+            val newPost =
+                ActivePost(post.id, post.authorId, post.title, post.paragraphs, post.category, post.tags, Date())
             postBlanks.remove(authorId)
             posts[newPost.id] = authorId to newPost
             return newPost
@@ -64,25 +106,21 @@ class PostMemoryStorageApi : PostStorageApi {
 
     override suspend fun deletePost(post: Post): Post {
         val oldPost = posts[post.id]
-        if (oldPost != null) {
+        return if (oldPost != null) {
             posts.remove(post.id)
-            return post
+            post
         } else {
-            throw Exception("No such post")
+            val oldPostBlank = postBlanks[post.authorId]
+            if (oldPostBlank != null) {
+                postBlanks.remove(post.authorId)
+                oldPostBlank
+            } else {
+                throw Exception("No such post")
+            }
         }
     }
 
-    override suspend fun deletePost(post: PostBlank): PostBlank {
-        val oldPost = postBlanks.entries.find { it.value.id == post.id }
-        if (oldPost != null) {
-            postBlanks.remove(oldPost.key)
-            return post
-        } else {
-            throw Exception("No such post")
-        }
-    }
-
-    override suspend fun getUserPostBlank(user: ActiveUser): PostBlank? {
+    override suspend fun getUserPostBlank(user: ActiveUser): NotCompletedPost? {
         return postBlanks[user.id]
     }
 }
