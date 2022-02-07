@@ -1,9 +1,9 @@
 package com.gitlab.andrewkuryan.brownie.api.memoryStorage
 
-import com.gitlab.andrewkuryan.brownie.api.CategoryStorageApi
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
-import com.gitlab.andrewkuryan.brownie.api.TagStorageApi
 import com.gitlab.andrewkuryan.brownie.entity.*
+import com.gitlab.andrewkuryan.brownie.entity.post.*
+import com.gitlab.andrewkuryan.brownie.entity.user.*
 import java.math.BigInteger
 
 class MemoryStorageApi : StorageApi {
@@ -15,18 +15,18 @@ class MemoryStorageApi : StorageApi {
     override val tagApi = TagMemoryStorageApi()
 
     init {
-        contacts[0] = ActiveUserContact(
+        contacts[0] = UserContact.Active(
             id = 0,
-            data = TelegramContactData(
+            data = ContactData.Telegram(
                 telegramId = 721992046,
                 firstName = "Maestro",
                 username = "maestro_magic",
             )
         )
         contactApi.currentContactId = 1
-        users[0] = ActiveUser(
+        users[0] = User.Active(
             id = 0,
-            permissions = listOf(),
+            permissions = UserPermission.DEFAULT + listOf(UserPermission.BrowseAllPosts),
             data = UserData(
                 login = "andrewkuryan",
                 credentials = UserCredentials(
@@ -42,7 +42,7 @@ class MemoryStorageApi : StorageApi {
         )
         userApi.currentUserId = 1
         sessions["MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBmyKJUDrgFE+tJD69scWeR0ntmG0H2m8Why7GvHtNGgchO6IT915dcOsoUMvgaB76Sv8fAMv0KBZBj2IeMeAJttoB6NM1rN+oHzIr8aGImby9aw/oE/7LbPyOgAqGcFw2j4GHr4iPTtFTwzXjxf/seFJUtuKrqP+oe3Fk0h2RhpbzsLA"] =
-            ActiveSession(
+            BackendSession.Active(
                 publicKey = "MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBmyKJUDrgFE+tJD69scWeR0ntmG0H2m8Why7GvHtNGgchO6IT915dcOsoUMvgaB76Sv8fAMv0KBZBj2IeMeAJttoB6NM1rN+oHzIr8aGImby9aw/oE/7LbPyOgAqGcFw2j4GHr4iPTtFTwzXjxf/seFJUtuKrqP+oe3Fk0h2RhpbzsLA=",
                 browserName = "chrome",
                 osName = "Mac OS"
@@ -52,7 +52,6 @@ class MemoryStorageApi : StorageApi {
         files[0] = StorageFile(0, 172279, StorageFileFormat.JPG, "")
 
         categoryApi.currentCategoryId = 4
-        categories[0] = Category.Unclassified
         categories[1] = Category.TopLevel(1, CategoryData.TopLevel("Programming", MetadataScope.Global))
         categories[2] = Category.TopLevel(2, CategoryData.TopLevel("Bicycles", MetadataScope.Global))
         categories[3] = Category.Secondary(

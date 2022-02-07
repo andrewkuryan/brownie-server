@@ -6,7 +6,8 @@ import com.github.kotlintelegrambot.dispatch
 import com.github.kotlintelegrambot.dispatcher.command
 import com.github.kotlintelegrambot.entities.*
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
-import com.gitlab.andrewkuryan.brownie.entity.*
+import com.gitlab.andrewkuryan.brownie.entity.user.ContactData
+import com.gitlab.andrewkuryan.brownie.entity.user.User
 import com.gitlab.andrewkuryan.brownie.telegram.flow.createPost.createPostFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,8 +28,8 @@ class TelegramApi(storageApi: StorageApi, botToken: String) {
                 if (userId != null && tgUserId != null && tgFirstName != null) {
                     CoroutineScope(Dispatchers.IO).launch {
                         val user = storageApi.userApi.getUserById(userId)
-                        if (user != null && user is GuestUser) {
-                            val contactData = TelegramContactData(tgUserId, tgFirstName, tgUsername)
+                        if (user != null && user is User.Guest) {
+                            val contactData = ContactData.Telegram(tgUserId, tgFirstName, tgUsername)
                             val contact = storageApi.contactApi.createContact(contactData)
                             storageApi.userApi.addUserContact(user, contact)
                             sendVerificationCode(contactData, contact.verificationCode)
@@ -45,7 +46,7 @@ class TelegramApi(storageApi: StorageApi, botToken: String) {
         bot.startPolling()
     }
 
-    fun sendVerificationCode(contactData: TelegramContactData, verificationCode: String) {
+    fun sendVerificationCode(contactData: ContactData.Telegram, verificationCode: String) {
         bot.sendMessage(
             ChatId.fromId(contactData.telegramId),
             "Your verification code:\n${verificationCode}"

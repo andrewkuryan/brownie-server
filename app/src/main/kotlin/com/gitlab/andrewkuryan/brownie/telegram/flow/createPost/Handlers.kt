@@ -10,22 +10,25 @@ import com.github.kotlintelegrambot.entities.Message
 import com.github.kotlintelegrambot.entities.MessageEntity
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.*
+import com.gitlab.andrewkuryan.brownie.entity.post.*
+import com.gitlab.andrewkuryan.brownie.entity.user.ContactUniqueKey
+import com.gitlab.andrewkuryan.brownie.entity.user.User
 import com.gitlab.andrewkuryan.brownie.telegram.withParams
 
 fun fromId(message: Message): () -> Option<Long> =
     { message.from?.id.toOption() }
 
-fun user(storageApi: StorageApi): suspend (chatId: Long) -> Option<ActiveUser> =
+fun user(storageApi: StorageApi): suspend (chatId: Long) -> Option<User.Active> =
     { chatId ->
-        storageApi.contactApi.getContactByUniqueKey(TelegramContactKey(chatId))
+        storageApi.contactApi.getContactByUniqueKey(ContactUniqueKey.Telegram(chatId))
             ?.let { storageApi.userApi.getUserByContact(it) }
             .toOption()
     }
 
-fun userPostBlank(storageApi: StorageApi): suspend (ActiveUser) -> Option<NotCompletedPost> =
+fun userPostBlank(storageApi: StorageApi): suspend (User.Active) -> Option<Post.NotCompleted> =
     { storageApi.postApi.getUserPostBlank(it).toOption() }
 
-inline fun <reified T : NotCompletedPost> typedUserPostBlank(storageApi: StorageApi): suspend (ActiveUser) -> Option<T> =
+inline fun <reified T : Post.NotCompleted> typedUserPostBlank(storageApi: StorageApi): suspend (User.Active) -> Option<T> =
     { user ->
         userPostBlank(storageApi)(user).flatMap {
             when (it) {
@@ -35,22 +38,24 @@ inline fun <reified T : NotCompletedPost> typedUserPostBlank(storageApi: Storage
         }
     }
 
-fun category(storageApi: StorageApi, message: Message): suspend (CategorizingPost) -> Option<Category> =
+fun category(storageApi: StorageApi, message: Message): suspend (Post.Categorizing) -> Option<Category> =
     { post ->
         messageText(message)().flatMap { text ->
             val category = storageApi.categoryApi.searchCategories(
                 when (post.category) {
                     is Category.Unclassified ->
-                        CategoryFilter.TopLevel(scope = MetadataScope.Global) or
-                                CategoryFilter.TopLevel(scope = MetadataScope.Author(post.authorId))
+                        CategoryFilter.TopLevel(
+                            name = text.exactlyFilter(),
+                            scope = MetadataScope.Author(post.authorId).anyParentFilter(),
+                        )
                     is Category.TopLevel, is Category.Secondary ->
-                        CategoryFilter.Secondary(scope = MetadataScope.Global, parent = post.category) or
-                                CategoryFilter.Secondary(
-                                    scope = MetadataScope.Author(post.authorId),
-                                    parent = post.category
-                                )
+                        CategoryFilter.Secondary(
+                            name = text.exactlyFilter(),
+                            scope = MetadataScope.Author(post.authorId).anyParentFilter(),
+                            parent = post.category.exactlyFilter()
+                        )
                 }
-            ).find { it.data.name == text }
+            ).firstOrNull()
             when (category) {
                 null -> None
                 else -> Some(category)
@@ -79,7 +84,7 @@ suspend fun completeTitle(storageApi: StorageApi, message: Message) =
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<InitializedPost>(storageApi),
+        typedUserPostBlank<Post.Initialized>(storageApi),
         { messageText(message)() },
     ) { _, _, postBlank, text ->
         storageApi.postApi.addPostTitle(postBlank, text)
@@ -89,7 +94,7 @@ suspend fun completeParagraph(storageApi: StorageApi, getBot: () -> Bot, message
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<FillingPost>(storageApi),
+        typedUserPostBlank<Post.Filling>(storageApi),
     ) { _, _, postBlank ->
         println(message)
         buildParagraph(message, storageApi, getBot)?.let {
@@ -101,7 +106,7 @@ suspend fun completeContent(storageApi: StorageApi, message: Message) =
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<FillingPost>(storageApi),
+        typedUserPostBlank<Post.Filling>(storageApi),
     ) { _, _, postBlank ->
         storageApi.postApi.addPostCategory(postBlank, Category.Unclassified)
     }
@@ -120,26 +125,26 @@ suspend fun completeAllCategories(storageApi: StorageApi, message: Message) =
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<CategorizingPost>(storageApi),
+        typedUserPostBlank<Post.Categorizing>(storageApi),
     ) { _, _, postBlank ->
         storageApi.postApi.addPostTags(postBlank, listOf())
     }
 
-suspend fun autoCompleteCategories(storageApi: StorageApi, post: CategorizingPost) =
+suspend fun autoCompleteCategories(storageApi: StorageApi, post: Post.Categorizing) =
     storageApi.postApi.addPostTags(post, listOf()).toOption()
 
 suspend fun searchTags(storageApi: StorageApi, getBot: () -> Bot, message: Message) =
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<TaggablePost>(storageApi),
+        typedUserPostBlank<Post.Taggable>(storageApi),
         { messageText(message)() },
     ) { _, _, postBlank, text ->
         val tags = storageApi.tagApi.searchTags(
-            availableTagsFilter(
-                Regex(".*${text.removePrefix("/q ")}.*", RegexOption.IGNORE_CASE),
-                postBlank.authorId,
-                postBlank.category
+            TagFilter(
+                name = RegexpFilter(Regex(".*${text.removePrefix("/q ")}.*", RegexOption.IGNORE_CASE)),
+                scope = MetadataScope.Author(postBlank.authorId).anyParentFilter(),
+                category = postBlank.category.anyParentFilter()
             )
         ).joinToString(", ") { it.name }
         getBot().sendMessage(
@@ -156,7 +161,7 @@ suspend fun completeTags(storageApi: StorageApi, message: Message) =
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<TaggablePost>(storageApi),
+        typedUserPostBlank<Post.Taggable>(storageApi),
         { tags(storageApi, message)() },
     ) { _, _, postBlank, tags ->
         val result = storageApi.postApi.replacePostTags(postBlank, tags)
@@ -167,7 +172,7 @@ suspend fun completePost(storageApi: StorageApi, message: Message) =
     withParams(
         fromId(message),
         user(storageApi),
-        typedUserPostBlank<TaggablePost>(storageApi),
+        typedUserPostBlank<Post.Taggable>(storageApi),
     ) { _, _, postBlank ->
         storageApi.postApi.completePost(postBlank)
     }
@@ -187,7 +192,7 @@ suspend fun buildParagraph(message: Message, storageApi: StorageApi, getBot: () 
             ?.let { imagePath ->
                 getBot().downloadFile(imagePath).first?.body()?.byteStream()?.let {
                     Paragraph.Image(
-                        file = storageApi.fileApi.saveFile(it, StorageFileFormat.fromExtension(imagePath)),
+                        file = storageApi.fileApi.saveFile(it, StorageFileFormat.fromFilename(imagePath)),
                         description = message.caption
                     )
                 }
@@ -229,28 +234,3 @@ fun List<MessageEntity.Type>.toTextFormatting(): TextFormatting =
         fontStyle = if (any { it == MessageEntity.Type.ITALIC }) FontStyle.ITALIC else FontStyle.NORMAL,
         textDecoration = if (any { it == MessageEntity.Type.UNDERLINE }) TextDecoration.UNDERLINE else TextDecoration.NONE,
     )
-
-fun availableTagsFilter(name: Regex, authorId: Int, category: Category): Filter<Tag> {
-    return when (category) {
-        is Category.Unclassified -> TagFilter(name = StringFilter.Regexp(name), scope = MetadataScope.Global) or
-                TagFilter(name = StringFilter.Regexp(name), scope = MetadataScope.Author(authorId))
-        is Category.TopLevel -> TagFilter(
-            name = StringFilter.Regexp(name),
-            scope = MetadataScope.Global,
-            category = CategoryFilter.exactly(category),
-        ) or TagFilter(
-            name = StringFilter.Regexp(name),
-            scope = MetadataScope.Author(authorId),
-            category = CategoryFilter.exactly(category),
-        ) or availableTagsFilter(name, authorId, Category.Unclassified)
-        is Category.Secondary -> TagFilter(
-            name = StringFilter.Regexp(name),
-            scope = MetadataScope.Global,
-            category = CategoryFilter.exactly(category),
-        ) or TagFilter(
-            name = StringFilter.Regexp(name),
-            scope = MetadataScope.Author(authorId),
-            category = CategoryFilter.exactly(category),
-        ) or availableTagsFilter(name, authorId, category.data.parent)
-    }
-}

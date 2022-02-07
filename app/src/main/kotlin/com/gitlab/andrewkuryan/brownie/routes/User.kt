@@ -2,11 +2,10 @@ package com.gitlab.andrewkuryan.brownie.routes
 
 import com.gitlab.andrewkuryan.brownie.*
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
-import com.gitlab.andrewkuryan.brownie.entity.*
+import com.gitlab.andrewkuryan.brownie.entity.user.*
 import com.gitlab.andrewkuryan.brownie.logic.SrpGenerator
 import com.google.gson.Gson
 import io.ktor.application.*
-import io.ktor.http.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import java.math.BigInteger
@@ -26,6 +25,8 @@ data class LoginInitResponse(val salt: String, val BHex: String)
 data class LoginVerifyBody(val login: String, val AHex: String, val BHex: String, val MHex: String)
 data class LoginVerifyResponse(val RHex: String, val user: User)
 
+object LogoutResponse
+
 fun Route.userRoutes(
     storageApi: StorageApi,
     srpGenerator: SrpGenerator,
@@ -40,8 +41,8 @@ fun Route.userRoutes(
 
     post("/api/user/contact/email") {
         val user = getAuthorizedUser()
-        val body = receiveVerified<EmailContactData>(gson)
-        if (user is GuestUser) {
+        val body = receiveVerified<ContactData.Email>(gson)
+        if (user is User.Guest) {
             val contact = storageApi.contactApi.createContact(body)
             storageApi.userApi.addUserContact(user, contact)
             emailService.sendVerificationEmail(body, contact.verificationCode)
@@ -53,11 +54,14 @@ fun Route.userRoutes(
 
     post("/api/user/contact/resend-code") {
         val user = getAuthorizedUser()
-        if (user is BlankUser && user.contact is UnconfirmedUserContact) {
+        if (user is User.Blank && user.contact is UserContact.Unconfirmed) {
             val newContact = storageApi.contactApi.regenerateVerificationCode(user.contact)
             when (newContact.data) {
-                is EmailContactData -> emailService.sendVerificationEmail(newContact.data, newContact.verificationCode)
-                is TelegramContactData -> telegramApi.sendVerificationCode(newContact.data, newContact.verificationCode)
+                is ContactData.Email -> emailService.sendVerificationEmail(newContact.data, newContact.verificationCode)
+                is ContactData.Telegram -> telegramApi.sendVerificationCode(
+                    newContact.data,
+                    newContact.verificationCode
+                )
             }
             call.respond<UserContact>(newContact)
         } else {
@@ -70,10 +74,10 @@ fun Route.userRoutes(
         val code = receiveVerified<VerifyContactBody>(gson)
         val contactId = call.parameters["id"]?.toInt() ?: -1
         val contact = when {
-            user is BlankUser && user.contact is UnconfirmedUserContact && user.contact.id == contactId ->
+            user is User.Blank && user.contact is UserContact.Unconfirmed && user.contact.id == contactId ->
                 user.contact
-            user is ActiveUser && user.contacts.find { it is UnconfirmedUserContact && it.id == contactId } != null ->
-                user.contacts.filterIsInstance<UnconfirmedUserContact>().find { it.id == contactId }!!
+            user is User.Active && user.contacts.find { it is UserContact.Unconfirmed && it.id == contactId } != null ->
+                user.contacts.filterIsInstance<UserContact.Unconfirmed>().find { it.id == contactId }!!
             else -> throw ClientException("Unverified contact not found")
         }
         if (code.verificationCode == contact.verificationCode) {
@@ -88,11 +92,11 @@ fun Route.userRoutes(
         val user = getAuthorizedUser()
         val session = getSession()
         val body = receiveVerified<FulfillUserBody>(gson)
-        if (user is BlankUser && session is GuestSession) {
+        if (user is User.Blank && session is BackendSession.Guest) {
             val verifier = BigInteger(body.verifierHex, 16)
             val data = UserData(body.login, UserCredentials(body.salt, verifier))
             val newUser = storageApi.userApi.fulfillUser(user, data)
-            val newSession = ActiveSession(session.publicKey, session.browserName, session.osName)
+            val newSession = BackendSession.Active(session.publicKey, session.browserName, session.osName)
             storageApi.userApi.updateSession(session, newSession)
             call.respond<User>(newUser)
         } else {
@@ -103,11 +107,12 @@ fun Route.userRoutes(
     post("/api/user/login/init") {
         val guestUser = getAuthorizedUser()
         val guestSession = getSession()
-        if (guestUser is GuestUser && guestSession is GuestSession) {
+        if (guestUser is User.Guest && guestSession is BackendSession.Guest) {
             val body = receiveVerified<LoginInitBody>(gson)
             val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not found")
             val (KHex, B) = srpGenerator.computeKHexB(BigInteger(body.AHex, 16), user.data.credentials.verifier)
-            val newSession = TempSession(guestSession.publicKey, guestSession.browserName, guestSession.osName, KHex)
+            val newSession =
+                BackendSession.Temp(guestSession.publicKey, guestSession.browserName, guestSession.osName, KHex)
             storageApi.userApi.updateSession(guestSession, newSession)
             call.respond(LoginInitResponse(user.data.credentials.salt, B.toString(16)))
         } else {
@@ -118,20 +123,18 @@ fun Route.userRoutes(
     post("/api/user/login/verify") {
         val guestUser = getAuthorizedUser()
         val tempSession = getSession()
-        if (guestUser is GuestUser && tempSession is TempSession) {
+        if (guestUser is User.Guest && tempSession is BackendSession.Temp) {
             val body = receiveVerified<LoginVerifyBody>(gson)
             val user = storageApi.userApi.getUserByLogin(body.login) ?: throw ClientException("User not fount")
             val expectedM = srpGenerator
                 .computeMHex(body.login, user.data.credentials.salt, body.AHex, body.BHex, tempSession.KHex)
             if (expectedM == body.MHex) {
-                val newSession = ActiveSession(tempSession.publicKey, tempSession.browserName, tempSession.osName)
+                val newSession =
+                    BackendSession.Active(tempSession.publicKey, tempSession.browserName, tempSession.osName)
                 storageApi.userApi.changeSessionOwner(tempSession, user, newSession)
                 storageApi.userApi.deleteUser(guestUser)
                 call.respond(
-                    LoginVerifyResponse(
-                        srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex),
-                        user
-                    )
+                    LoginVerifyResponse(srpGenerator.computeRHex(body.AHex, expectedM, tempSession.KHex), user)
                 )
             } else {
                 throw NoPermissionException("Session values does not match")
@@ -144,7 +147,7 @@ fun Route.userRoutes(
     post("/api/user/logout") {
         val session = getSession()
         storageApi.userApi.deleteSession(session)
-        call.respond(HttpStatusCode.OK)
+        call.respond(LogoutResponse)
     }
 
     get("/api/user/{id}/info") {

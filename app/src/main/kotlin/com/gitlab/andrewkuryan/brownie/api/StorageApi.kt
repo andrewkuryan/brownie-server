@@ -1,6 +1,8 @@
 package com.gitlab.andrewkuryan.brownie.api
 
 import com.gitlab.andrewkuryan.brownie.entity.*
+import com.gitlab.andrewkuryan.brownie.entity.post.*
+import com.gitlab.andrewkuryan.brownie.entity.user.*
 import java.io.File
 import java.io.InputStream
 
@@ -16,52 +18,61 @@ interface StorageApi {
 interface UserStorageApi {
     suspend fun getUserBySessionKey(publicKey: String): Pair<User, BackendSession>?
     suspend fun getUserById(id: Int): User?
-    suspend fun getUserByLogin(login: String): ActiveUser?
-    suspend fun getUserByContact(contact: ActiveUserContact): ActiveUser?
+    suspend fun getUserByLogin(login: String): User.Active?
+    suspend fun getUserByContact(contact: UserContact.Active): User.Active?
     suspend fun getUserPublicInfo(id: Int): List<UserPublicItem>?
 
-    suspend fun changeSessionOwner(session: TempSession, newUser: ActiveUser, newSession: ActiveSession): ActiveSession
-    suspend fun updateSession(oldSession: GuestSession, newSession: ActiveSession): ActiveSession
-    suspend fun updateSession(oldSession: GuestSession, newSession: TempSession): TempSession
+    suspend fun changeSessionOwner(
+        session: BackendSession.Temp,
+        newUser: User.Active,
+        newSession: BackendSession.Active
+    ): BackendSession.Active
+
+    suspend fun updateSession(
+        oldSession: BackendSession.Guest,
+        newSession: BackendSession.Active
+    ): BackendSession.Active
+
+    suspend fun updateSession(oldSession: BackendSession.Guest, newSession: BackendSession.Temp): BackendSession.Temp
     suspend fun deleteSession(session: BackendSession): BackendSession
 
-    suspend fun createNewGuest(session: BackendSession): GuestUser
+    suspend fun createNewGuest(session: BackendSession): User.Guest
 
-    suspend fun addUserContact(oldUser: GuestUser, contact: UserContact): BlankUser
-    suspend fun addUserContact(oldUser: ActiveUser, contact: UserContact): ActiveUser
+    suspend fun addUserContact(oldUser: User.Guest, contact: UserContact): User.Blank
+    suspend fun addUserContact(oldUser: User.Active, contact: UserContact): User.Active
 
-    suspend fun fulfillUser(user: BlankUser, data: UserData): ActiveUser
-    suspend fun updateUser(user: ActiveUser, newData: UserData): ActiveUser
+    suspend fun fulfillUser(user: User.Blank, data: UserData): User.Active
+    suspend fun updateUser(user: User.Active, newData: UserData): User.Active
 
     suspend fun deleteUser(user: User): User
 }
 
 interface ContactStorageApi {
-    suspend fun createContact(contactData: ContactData): UnconfirmedUserContact
-    suspend fun confirmContact(contact: UnconfirmedUserContact): ActiveUserContact
-    suspend fun regenerateVerificationCode(contact: UnconfirmedUserContact): UnconfirmedUserContact
+    suspend fun createContact(contactData: ContactData): UserContact.Unconfirmed
+    suspend fun confirmContact(contact: UserContact.Unconfirmed): UserContact.Active
+    suspend fun regenerateVerificationCode(contact: UserContact.Unconfirmed): UserContact.Unconfirmed
 
-    suspend fun getContactByUniqueKey(uniqueKey: ContactUniqueKey): ActiveUserContact?
+    suspend fun getContactByUniqueKey(uniqueKey: ContactUniqueKey): UserContact.Active?
 }
 
 interface PostStorageApi {
-    suspend fun initNewPost(author: ActiveUser): InitializedPost
-    suspend fun addPostTitle(post: InitializedPost, title: String): FillingPost
-    suspend fun addPostParagraph(post: FillingPost, paragraph: Paragraph): FillingPost
-    suspend fun addPostCategory(post: FillingPost, category: Category): CategorizingPost
-    suspend fun changePostCategory(post: CategorizingPost, newCategory: Category): CategorizingPost
-    suspend fun addPostTags(post: CategorizingPost, tags: List<Tag>): TaggablePost
-    suspend fun replacePostTags(post: TaggablePost, newTags: List<Tag>): TaggablePost
-    suspend fun completePost(post: TaggablePost): ActivePost
+    suspend fun initNewPost(author: User.Active): Post.Initialized
+    suspend fun addPostTitle(post: Post.Initialized, title: String): Post.Filling
+    suspend fun addPostParagraph(post: Post.Filling, paragraph: Paragraph): Post.Filling
+    suspend fun addPostCategory(post: Post.Filling, category: Category): Post.Categorizing
+    suspend fun changePostCategory(post: Post.Categorizing, newCategory: Category): Post.Categorizing
+    suspend fun addPostTags(post: Post.Categorizing, tags: List<Tag>): Post.Taggable
+    suspend fun replacePostTags(post: Post.Taggable, newTags: List<Tag>): Post.Taggable
+    suspend fun completePost(post: Post.Taggable): Post.Active
 
     suspend fun deletePost(post: Post): Post
 
     suspend fun getPostById(id: Int): Post?
-    suspend fun getUserPostBlank(user: ActiveUser): NotCompletedPost?
+    suspend fun getUserPostBlank(user: User.Active): Post.NotCompleted?
 }
 
 interface CategoryStorageApi {
-    suspend fun searchCategories(filter: Filter<Category>): List<Category>
+    suspend fun searchCategories(filter: Filter<Category>): List<Category.Meaningful>
 }
 
 interface TagStorageApi {

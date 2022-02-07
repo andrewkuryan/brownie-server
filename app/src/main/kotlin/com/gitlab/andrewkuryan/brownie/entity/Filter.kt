@@ -4,36 +4,55 @@ interface Filter<in T : Any> {
     fun apply(value: T): Boolean
 }
 
-sealed class StringFilter : Filter<String> {
-    data class Exactly(val query: String) : StringFilter() {
-        override fun apply(value: String) = value == query
-    }
+class EmptyFilter<T : Any> : Filter<T> {
+    override fun apply(value: T) = true
+}
 
-    data class Regexp(val query: Regex) : StringFilter() {
-        override fun apply(value: String) = value.matches(query)
-    }
+data class ExactlyFilter<T : Any>(val value: T) : Filter<T> {
+    override fun apply(value: T) = value == this.value
+}
+
+fun <T : Any> T.exactlyFilter() = ExactlyFilter(this)
+
+data class RegexpFilter(val query: Regex) : Filter<String> {
+    override fun apply(value: String) = value.matches(query)
 }
 
 enum class FilterOperator { OR, AND }
-sealed class FilterMember<T : Any> : Filter<T> {
-    data class Operand<T : Any>(val filter: Filter<T>) : FilterMember<T>() {
-        override fun apply(value: T) = filter.apply(value)
-    }
 
-    data class Expression<T : Any>(
-        val operator: FilterOperator,
-        val left: FilterMember<T>,
-        val right: FilterMember<T>
-    ) : FilterMember<T>() {
-        override fun apply(value: T) = when (operator) {
-            FilterOperator.OR -> left.apply(value) || right.apply(value)
-            FilterOperator.AND -> left.apply(value) && right.apply(value)
-        }
+data class FilterExpression<T : Any>(
+    val operator: FilterOperator,
+    val left: Filter<T>,
+    val right: Filter<T>
+) : Filter<T> {
+    override fun apply(value: T) = when (operator) {
+        FilterOperator.OR -> left.apply(value) || right.apply(value)
+        FilterOperator.AND -> left.apply(value) && right.apply(value)
     }
 }
 
-infix fun <T : Any> Filter<T>.or(other: Filter<T>) = FilterMember.Expression(
-    FilterOperator.OR,
-    FilterMember.Operand(this),
-    FilterMember.Operand(other),
-)
+infix fun <T : Any> Filter<T>.or(other: Filter<T>) =
+    FilterExpression(FilterOperator.OR, this, other)
+
+infix fun <T : Any> Filter<T>.and(other: Filter<T>) =
+    FilterExpression(FilterOperator.AND, this, other)
+
+fun <T1 : Any, T2 : Any> applyAll(
+    f1: Filter<T1>, f2: Filter<T2>,
+    v1: T1, v2: T2
+) = f1.apply(v1) && f2.apply(v2)
+
+fun <T1 : Any, T2 : Any, T3 : Any> applyAll(
+    f1: Filter<T1>, f2: Filter<T2>, f3: Filter<T3>,
+    v1: T1, v2: T2, v3: T3
+) = f1.apply(v1) && f2.apply(v2) && f3.apply(v3)
+
+fun <T1 : Any, T2 : Any, T3 : Any, T4 : Any> applyAll(
+    f1: Filter<T1>, f2: Filter<T2>, f3: Filter<T3>, f4: Filter<T4>,
+    v1: T1, v2: T2, v3: T3, v4: T4
+) = f1.apply(v1) && f2.apply(v2) && f3.apply(v3) && f4.apply(v4)
+
+fun <T1 : Any, T2 : Any, T3 : Any, T4 : Any, T5 : Any> applyAll(
+    f1: Filter<T1>, f2: Filter<T2>, f3: Filter<T3>, f4: Filter<T4>, f5: Filter<T5>,
+    v1: T1, v2: T2, v3: T3, v4: T4, v5: T5
+) = f1.apply(v1) && f2.apply(v2) && f3.apply(v3) && f4.apply(v4) && f5.apply(v5)

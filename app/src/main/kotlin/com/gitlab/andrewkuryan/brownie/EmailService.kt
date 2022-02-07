@@ -1,6 +1,6 @@
 package com.gitlab.andrewkuryan.brownie
 
-import com.gitlab.andrewkuryan.brownie.entity.EmailContactData
+import com.gitlab.andrewkuryan.brownie.entity.user.ContactData
 import freemarker.template.Configuration
 import freemarker.template.TemplateExceptionHandler
 import org.simplejavamail.api.mailer.config.TransportStrategy
@@ -35,7 +35,7 @@ class EmailService(
         cfg.fallbackOnNullLoopVariable = false
     }
 
-    fun sendVerificationEmail(contactData: EmailContactData, verificationCode: String) {
+    fun sendVerificationEmail(contactData: ContactData.Email, verificationCode: String) {
         val root = mutableMapOf(
             "verificationCode" to verificationCode
         )

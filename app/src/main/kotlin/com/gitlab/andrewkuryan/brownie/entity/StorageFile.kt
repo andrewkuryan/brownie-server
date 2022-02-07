@@ -4,7 +4,7 @@ enum class StorageFileFormat(val extension: String) {
     JPG("jpg"), TEXT("txt"), UNDEFINED("");
 
     companion object {
-        fun fromExtension(filename: String): StorageFileFormat {
+        fun fromFilename(filename: String): StorageFileFormat {
             val fileExt = filename.substring(filename.lastIndexOf('.') + 1, filename.length)
             return values().filter { it != UNDEFINED }.find { it.extension == fileExt } ?: UNDEFINED
         }

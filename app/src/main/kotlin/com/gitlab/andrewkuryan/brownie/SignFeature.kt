@@ -1,13 +1,11 @@
 package com.gitlab.andrewkuryan.brownie
 
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
-import com.gitlab.andrewkuryan.brownie.entity.BackendSession
-import com.gitlab.andrewkuryan.brownie.entity.GuestSession
-import com.gitlab.andrewkuryan.brownie.entity.User
+import com.gitlab.andrewkuryan.brownie.entity.user.BackendSession
+import com.gitlab.andrewkuryan.brownie.entity.user.User
 import com.gitlab.andrewkuryan.brownie.routes.fileChecksumKey
 import com.google.gson.Gson
 import io.ktor.application.*
-import io.ktor.content.*
 import io.ktor.content.TextContent
 import io.ktor.http.content.*
 import io.ktor.request.*
@@ -122,7 +120,7 @@ class SignFeature(configuration: Configuration) {
 
                     val userWithSession = feature.storageApi.userApi.getUserBySessionKey(rawPublicKey)
                     if (userWithSession == null) {
-                        val backendSession = GuestSession(rawPublicKey, browserName, osName)
+                        val backendSession = BackendSession.Guest(rawPublicKey, browserName, osName)
                         val newUser = feature.storageApi.userApi.createNewGuest(backendSession)
                         context.attributes.put(authorizedUserKey, newUser)
                         context.attributes.put(sessionKey, backendSession)

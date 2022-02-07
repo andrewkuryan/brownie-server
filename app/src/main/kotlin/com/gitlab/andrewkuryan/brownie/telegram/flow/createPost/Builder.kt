@@ -8,6 +8,7 @@ import com.github.kotlintelegrambot.dispatcher.Dispatcher
 import com.github.kotlintelegrambot.entities.BotCommand
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
 import com.gitlab.andrewkuryan.brownie.entity.*
+import com.gitlab.andrewkuryan.brownie.entity.post.*
 import com.gitlab.andrewkuryan.brownie.telegram.FlowVertex
 import com.gitlab.andrewkuryan.brownie.telegram.TriggerMessage
 import com.gitlab.andrewkuryan.brownie.telegram.flowContext
@@ -23,50 +24,51 @@ enum class CreatePostMessage(override val text: String) : TriggerMessage {
 
 fun Dispatcher.createPostFlow(storageApi: StorageApi, getBot: () -> Bot) {
     val initPostVertex = FlowVertex.Root("Create Post")
-    val enterTitleVertex = FlowVertex.Internal<InitializedPost> { "\uD83D\uDD24 Enter post title:" }
+    val enterTitleVertex = FlowVertex.Internal<Post.Initialized> { "\uD83D\uDD24 Enter post title:" }
     val enterParagraphVertex =
-        FlowVertex.Internal<FillingPost> { "\uD83D\uDCDD\uD83C\uDFDE Enter paragraph (text or image):" }
-    val addTopLevelCategoryVertex = FlowVertex.Internal<CategorizingPost> { post ->
+        FlowVertex.Internal<Post.Filling> { "\uD83D\uDCDD\uD83C\uDFDE Enter paragraph (text or image):" }
+    val addTopLevelCategoryVertex = FlowVertex.Internal<Post.Categorizing> { post ->
         val topLevelCategories = storageApi.categoryApi
-            .searchCategories(
-                CategoryFilter.TopLevel(scope = MetadataScope.Global) or
-                        CategoryFilter.TopLevel(scope = MetadataScope.Author(post.authorId))
-            )
-            .joinToString(", ") { it.data.name }
+            .searchCategories(CategoryFilter.TopLevel(scope = MetadataScope.Author(post.authorId).anyParentFilter()))
+            .joinToString(", ") { it.displayName() }
         "\uD83D\uDD20 Add top level category (one of: $topLevelCategories):"
     }
-    val addSecondaryCategoryVertex = FlowVertex.Internal<CategorizingPost> { post ->
+    val addSecondaryCategoryVertex = FlowVertex.Internal<Post.Categorizing> { post ->
         val nextLevelCategories = storageApi.categoryApi
             .searchCategories(
-                CategoryFilter.Secondary(scope = MetadataScope.Global, parent = post.category) or
-                        CategoryFilter.Secondary(scope = MetadataScope.Author(post.authorId), parent = post.category)
+                CategoryFilter.Secondary(
+                    scope = MetadataScope.Author(post.authorId).anyParentFilter(),
+                    parent = post.category.exactlyFilter()
+                )
             )
-            .joinToString(", ") { it.data.name }
+            .joinToString(", ") { it.displayName() }
         "\uD83D\uDD21 Add subcategory (one of: ${nextLevelCategories}):"
     }
-    val hasSecondaryCategoryVertex = FlowVertex.Decision<CategorizingPost, Boolean> {
+    val hasSecondaryCategoryVertex = FlowVertex.Decision<Post.Categorizing, Boolean> {
         storageApi.categoryApi.searchCategories(
-            CategoryFilter.Secondary(scope = MetadataScope.Global, parent = it.category) or
-                    CategoryFilter.Secondary(scope = MetadataScope.Author(it.authorId), parent = it.category)
+            CategoryFilter.Secondary(
+                scope = MetadataScope.Author(it.authorId).anyParentFilter(),
+                parent = it.category.exactlyFilter()
+            )
         ).isNotEmpty()
     }
-    val addTagsVertex = FlowVertex.Internal<TaggablePost> {
+    val addTagsVertex = FlowVertex.Internal<Post.Taggable> {
         """📌 Add tags separated by commas (e.g. <tag1>,<tag2>,...):
             |🔍 Use "/q <query>" to search existing tags
         """.trimMargin()
     }
     val cancelPostVertex = FlowVertex.Leaf<Post> { "\uD83D\uDDD1 Post creation canceled" }
-    val completePostVertex = FlowVertex.Leaf<ActivePost> { "✅ Post ${it.id} created successfully" }
+    val completePostVertex = FlowVertex.Leaf<Post.Active> { "✅ Post ${it.id} created successfully" }
 
     flowContext<CreatePostMessage>(getBot) {
         determineVertex {
             withParams(fromId(it), user(storageApi), userPostBlank(storageApi)) { _, _, postBlank ->
                 when {
-                    postBlank is InitializedPost -> enterTitleVertex
-                    postBlank is FillingPost -> enterParagraphVertex
-                    postBlank is CategorizingPost && postBlank.category is Category.Unclassified -> addTopLevelCategoryVertex
-                    postBlank is CategorizingPost -> addSecondaryCategoryVertex
-                    postBlank is TaggablePost -> addTagsVertex
+                    postBlank is Post.Initialized -> enterTitleVertex
+                    postBlank is Post.Filling -> enterParagraphVertex
+                    postBlank is Post.Categorizing && postBlank.category is Category.Unclassified -> addTopLevelCategoryVertex
+                    postBlank is Post.Categorizing -> addSecondaryCategoryVertex
+                    postBlank is Post.Taggable -> addTagsVertex
                     else -> null
                 }
             }.orNull() ?: initPostVertex
@@ -115,4 +117,10 @@ fun Dispatcher.createPostFlow(storageApi: StorageApi, getBot: () -> Bot) {
         addTagsVertex.byTrigger(CreatePostMessage.CANCEL).toVertex(cancelPostVertex)
             .withAction(::cancelPost.partially1(storageApi))
     }
+}
+
+private fun Category.displayName() = when (this) {
+    is Category.Unclassified -> "Unclassified"
+    is Category.TopLevel -> this.data.name
+    is Category.Secondary -> this.data.name
 }

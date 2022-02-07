@@ -1,24 +1,24 @@
-package com.gitlab.andrewkuryan.brownie.entity
+package com.gitlab.andrewkuryan.brownie.entity.user
 
 sealed class BackendSession {
     abstract val publicKey: String
-}
 
-data class GuestSession(
+    data class Guest(
         override val publicKey: String,
         val browserName: String,
         val osName: String,
-) : BackendSession()
+    ) : BackendSession()
 
-data class TempSession(
+    data class Temp(
         override val publicKey: String,
         val browserName: String,
         val osName: String,
         val KHex: String,
-) : BackendSession()
+    ) : BackendSession()
 
-data class ActiveSession(
+    data class Active(
         override val publicKey: String,
         val browserName: String,
         val osName: String,
-) : BackendSession()
+    ) : BackendSession()
+}

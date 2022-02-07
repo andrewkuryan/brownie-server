@@ -2,9 +2,8 @@ package com.gitlab.andrewkuryan.brownie.api.memoryStorage
 
 import com.gitlab.andrewkuryan.brownie.api.TagStorageApi
 import com.gitlab.andrewkuryan.brownie.entity.Filter
-import com.gitlab.andrewkuryan.brownie.entity.Tag
-import com.gitlab.andrewkuryan.brownie.entity.TagFilter
-import com.gitlab.andrewkuryan.brownie.entity.TagType
+import com.gitlab.andrewkuryan.brownie.entity.post.Tag
+import com.gitlab.andrewkuryan.brownie.entity.post.TagType
 
 typealias TagName = String
 typealias TagTypeName = String
