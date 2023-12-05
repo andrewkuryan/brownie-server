@@ -1,7 +1,6 @@
 package com.gitlab.andrewkuryan.brownie.api.memoryStorage
 
 import com.gitlab.andrewkuryan.brownie.api.ContactStorageApi
-import com.gitlab.andrewkuryan.brownie.entity.*
 import com.gitlab.andrewkuryan.brownie.entity.user.*
 import com.gitlab.andrewkuryan.brownie.logic.generateVerificationCode
 

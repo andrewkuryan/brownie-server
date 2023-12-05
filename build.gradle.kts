@@ -49,3 +49,7 @@ dependencies {
 application {
     mainClass.set("io.ktor.server.jetty.EngineMain")
 }
+
+tasks {
+    create("stage").dependsOn("installDist")
+}

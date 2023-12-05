@@ -8,4 +8,3 @@
  */
 
 rootProject.name = "brownie"
-include("app")
