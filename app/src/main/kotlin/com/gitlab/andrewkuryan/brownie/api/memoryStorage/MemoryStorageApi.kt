@@ -72,43 +72,43 @@ class MemoryStorageApi : StorageApi {
             tagTypes.getValue("Content Type"),
             "News",
             Category.Unclassified,
+            MetadataScope.Global,
             TagColor.RGB(208, 73, 6),
-            MetadataScope.Global
         )
         tags["Book"] = Tag(
             tagTypes.getValue("Content Type"),
             "Book",
             Category.Unclassified,
+            MetadataScope.Global,
             TagColor.RGB(215, 160, 89),
-            MetadataScope.Global
         )
         tags["Mem"] = Tag(
             tagTypes.getValue("Content Type"),
             "Mem",
             Category.Unclassified,
+            MetadataScope.Global,
             TagColor.RGB(166, 79, 188),
-            MetadataScope.Global
         )
         tags["Jet Brains"] = Tag(
             tagTypes.getValue("Organization"),
             "Jet Brains",
             categories.getValue(1),
+            MetadataScope.Global,
             TagColor.RGB(235, 62, 125),
-            MetadataScope.Global
         )
         tags["Linus Torvalds"] = Tag(
             tagTypes.getValue("Personality"),
             "Linus Torvalds",
             categories.getValue(4),
+            MetadataScope.Global,
             TagColor.RGB(132, 132, 132),
-            MetadataScope.Global
         )
         tags["Kotlin"] = Tag(
             tagTypes.getValue("Programming Language"),
             "Kotlin",
             categories.getValue(1),
+            MetadataScope.Global,
             TagColor.RGB(144, 72, 235),
-            MetadataScope.Global
         )
     }
 }
