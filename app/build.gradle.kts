@@ -10,7 +10,7 @@ repositories {
 
 val exposedVersion = "0.31.1"
 val coroutinesVersion = "1.5.1"
-val ktorVersion = "1.6.7"
+val ktorVersion = "1.6.8"
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")

@@ -78,8 +78,9 @@ class SignFeature(configuration: Configuration) {
 
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
                 if (context.response is RoutingApplicationResponse) {
+                    val baseUrl = "${call.request.local.scheme}://${call.request.local.host}:${call.request.local.port}"
                     val signMessageObject = """
-                    |{"url":"${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
+                    |{"url":"$baseUrl${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"method":"${call.request.httpMethod.value}"
                     |${
                         when (subject) {
@@ -94,11 +95,13 @@ class SignFeature(configuration: Configuration) {
 
                     val signature = createSignature(feature.privateSignKey, signMessageObject)
 
+                    context.response.header("Access-Control-Expose-Headers","X-Signature")
                     context.response.header("X-Signature", signature)
                 }
             }
             pipeline.intercept(ApplicationCallPipeline.Call) {
                 if (call.request.uri.startsWith("/api")) {
+                    val baseUrl = "${call.request.local.scheme}://${call.request.local.host}:${call.request.local.port}"
                     val rawPublicKey = call.request.headers["X-PublicKey"] ?: ""
                     val signature = call.request.headers["X-Signature"] ?: ""
                     val browserName = call.request.headers["X-BrowserName"] ?: ""
@@ -106,7 +109,7 @@ class SignFeature(configuration: Configuration) {
                     val body = call.receive<String>()
 
                     val signMessageObject = """
-                    |{"url":"${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
+                    |{"url":"$baseUrl${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"browserName":"$browserName",
                     |"osName":"$osName",
                     |"method":"${call.request.httpMethod.value}"

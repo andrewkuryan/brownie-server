@@ -10,10 +10,7 @@ import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import java.io.File
-import java.io.FileNotFoundException
 import java.math.BigInteger
-import java.nio.file.NoSuchFileException
 import java.nio.file.Paths
 import java.security.KeyFactory
 import java.security.Security
@@ -47,13 +44,23 @@ fun Application.main() {
         smtpServerPassword = environment.config.property("ktor.smtp.password").getString(),
         senderName = environment.config.property("ktor.smtp.senderName").getString(),
         senderEmail = environment.config.property("ktor.smtp.senderEmail").getString(),
-        templatesRoot = Paths.get("src/main/resources/mail")
+        templatesRoot = Paths.get("mail")
     )
     val telegramApi = TelegramApi(
         memoryStorageApi,
         environment.config.property("ktor.telegram.botToken").getString(),
     )
 
+    install(CORS) {
+        anyHost()
+        method(HttpMethod.Put)
+        header(HttpHeaders.ContentType)
+        allowHeadersPrefixed("X-")
+        header("X-PublicKey")
+        header("X-Signature")
+        header("X-BrowserName")
+        header("X-OsName")
+    }
     install(ContentNegotiation) {
         register(ContentType.Application.Json, customGsonConverter)
     }
@@ -62,19 +69,6 @@ fun Application.main() {
         privateSignKey = privateKey
     }
     install(StatusPages) {
-        status(HttpStatusCode.NotFound) {
-            try {
-                call.respondFile(
-                    File("web/${call.request.uri.split("/").last()}")
-                )
-            } catch (exc: Exception) {
-                when (exc) {
-                    is FileNotFoundException, is NoSuchFileException ->
-                        call.respondFile(File("web/index.html"))
-                    else -> throw exc
-                }
-            }
-        }
         exception<Throwable> { cause ->
             cause.printStackTrace()
             when (cause) {
