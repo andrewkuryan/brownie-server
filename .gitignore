@@ -1,13 +1,9 @@
 .gradle
-gradle
 
 .idea
 build
 web
 out
-
-gradlew
-gradlew.bat
 
 *.jks
 src/main/resources/properties.conf
