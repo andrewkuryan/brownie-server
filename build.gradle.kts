@@ -56,6 +56,12 @@ tasks.register<Copy>("copyResources") {
     into(layout.buildDirectory.dir("install/brownie/mail"))
 }
 
+tasks.register<Copy>("copyWeb") {
+    dependsOn("copyResources")
+    from(layout.projectDirectory.dir("web"))
+    into(layout.buildDirectory.dir("install/brownie/web"))
+}
+
 tasks {
-    create("stage").dependsOn("copyResources")
+    create("stage").dependsOn("copyWeb")
 }

@@ -10,6 +10,8 @@ import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.io.File
+import java.io.FileNotFoundException
 import java.math.BigInteger
 import java.nio.file.Paths
 import java.security.KeyFactory
@@ -69,6 +71,19 @@ fun Application.main() {
         privateSignKey = privateKey
     }
     install(StatusPages) {
+        status(HttpStatusCode.NotFound) {
+            try {
+                call.respondFile(
+                    File("web/${call.request.uri.split("/").last()}")
+                )
+            } catch (exc: Exception) {
+                when (exc) {
+                    is FileNotFoundException, is NoSuchFileException ->
+                        call.respondFile(File("web/index.html"))
+                    else -> throw exc
+                }
+            }
+        }
         exception<Throwable> { cause ->
             cause.printStackTrace()
             when (cause) {
