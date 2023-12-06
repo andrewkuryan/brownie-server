@@ -63,10 +63,12 @@ class SignFeature(configuration: Configuration) {
     val storageApi: StorageApi = configuration.storageApi ?: throw Exception("StorageApi not specified")
     val privateSignKey: PrivateKey = configuration.privateSignKey
         ?: throw Exception("Private key for sign not specified")
+    val apiUrl: String = configuration.apiUrl ?: throw Exception("API url for sign not specified")
 
     class Configuration {
         var storageApi: StorageApi? = null
         var privateSignKey: PrivateKey? = null
+        var apiUrl: String? = null
     }
 
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, Configuration, SignFeature> {
@@ -78,10 +80,8 @@ class SignFeature(configuration: Configuration) {
 
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
                 if (context.response is RoutingApplicationResponse) {
-                    val baseUrl = "${call.request.local.scheme}://${call.request.local.host}:${call.request.local.port}"
-                    println("baseUrl: $baseUrl")
                     val signMessageObject = """
-                    |{"url":"$baseUrl${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
+                    |{"url":"${feature.apiUrl}${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"method":"${call.request.httpMethod.value}"
                     |${
                         when (subject) {
@@ -96,14 +96,12 @@ class SignFeature(configuration: Configuration) {
 
                     val signature = createSignature(feature.privateSignKey, signMessageObject)
 
-                    context.response.header("Access-Control-Expose-Headers","X-Signature")
+                    context.response.header("Access-Control-Expose-Headers", "X-Signature")
                     context.response.header("X-Signature", signature)
                 }
             }
             pipeline.intercept(ApplicationCallPipeline.Call) {
                 if (call.request.uri.startsWith("/api")) {
-                    val baseUrl = "${call.request.local.scheme}://${call.request.local.host}:${call.request.local.port}"
-                    println("baseUrl: $baseUrl")
                     val rawPublicKey = call.request.headers["X-PublicKey"] ?: ""
                     val signature = call.request.headers["X-Signature"] ?: ""
                     val browserName = call.request.headers["X-BrowserName"] ?: ""
@@ -111,7 +109,7 @@ class SignFeature(configuration: Configuration) {
                     val body = call.receive<String>()
 
                     val signMessageObject = """
-                    |{"url":"$baseUrl${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
+                    |{"url":"${feature.apiUrl}${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"browserName":"$browserName",
                     |"osName":"$osName",
                     |"method":"${call.request.httpMethod.value}"

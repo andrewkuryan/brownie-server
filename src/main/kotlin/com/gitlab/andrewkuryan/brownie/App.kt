@@ -73,6 +73,7 @@ fun Application.main() {
     install(SignFeature) {
         storageApi = memoryStorageApi
         privateSignKey = privateKey
+        apiUrl = getConfig("ktor.apiUrl")
     }
     install(StatusPages) {
         status(HttpStatusCode.NotFound) {
