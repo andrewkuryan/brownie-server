@@ -80,6 +80,8 @@ class SignFeature(configuration: Configuration) {
 
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
                 if (context.response is RoutingApplicationResponse) {
+                    println("signMessageObject: ${feature.apiUrl}${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}")
+
                     val signMessageObject = """
                     |{"url":"${feature.apiUrl}${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"method":"${call.request.httpMethod.value}"
@@ -107,6 +109,8 @@ class SignFeature(configuration: Configuration) {
                     val browserName = call.request.headers["X-BrowserName"] ?: ""
                     val osName = call.request.headers["X-OsName"] ?: ""
                     val body = call.receive<String>()
+
+                    println("signMessageObject: ${feature.apiUrl}${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}")
 
                     val signMessageObject = """
                     |{"url":"${feature.apiUrl}${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
