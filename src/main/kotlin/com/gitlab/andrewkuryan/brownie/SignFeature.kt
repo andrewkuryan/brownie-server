@@ -79,6 +79,7 @@ class SignFeature(configuration: Configuration) {
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
                 if (context.response is RoutingApplicationResponse) {
                     val baseUrl = "${call.request.local.scheme}://${call.request.local.host}:${call.request.local.port}"
+                    println("baseUrl: $baseUrl")
                     val signMessageObject = """
                     |{"url":"$baseUrl${URLDecoder.decode(call.request.uri, StandardCharsets.UTF_8)}",
                     |"method":"${call.request.httpMethod.value}"
@@ -102,6 +103,7 @@ class SignFeature(configuration: Configuration) {
             pipeline.intercept(ApplicationCallPipeline.Call) {
                 if (call.request.uri.startsWith("/api")) {
                     val baseUrl = "${call.request.local.scheme}://${call.request.local.host}:${call.request.local.port}"
+                    println("baseUrl: $baseUrl")
                     val rawPublicKey = call.request.headers["X-PublicKey"] ?: ""
                     val signature = call.request.headers["X-Signature"] ?: ""
                     val browserName = call.request.headers["X-BrowserName"] ?: ""
