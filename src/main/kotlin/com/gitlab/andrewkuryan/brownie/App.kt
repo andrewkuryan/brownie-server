@@ -24,7 +24,6 @@ import javax.naming.NoPermissionException
 class ClientException(override val message: String?) : Exception()
 
 fun Application.getConfig(path: String): String {
-    println(path.uppercase().replace(".", "_"))
     return environment.config.propertyOrNull(path)?.getString() ?: System.getenv()
         .getOrDefault(path.uppercase().replace(".", "_"), "")
 }
@@ -60,6 +59,7 @@ fun Application.main() {
     install(CORS) {
         anyHost()
         method(HttpMethod.Put)
+        method(HttpMethod.Options)
         header(HttpHeaders.ContentType)
         allowHeadersPrefixed("X-")
         header("X-PublicKey")
