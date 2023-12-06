@@ -27,6 +27,10 @@ class EmailService(
         .buildMailer()
 
     init {
+        println("smtpServer: $smtpServer")
+        println("smtpServerUsername: $smtpServerUsername")
+        println("smtpServerPassword: $smtpServerPassword")
+
         cfg.setDirectoryForTemplateLoading(templatesRoot.toFile())
         cfg.defaultEncoding = "UTF-8"
         cfg.templateExceptionHandler = TemplateExceptionHandler.RETHROW_HANDLER
