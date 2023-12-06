@@ -76,20 +76,6 @@ fun Application.main() {
         apiUrl = getConfig("ktor.apiUrl")
     }
     install(StatusPages) {
-        status(HttpStatusCode.NotFound) {
-            try {
-                call.respondFile(
-                    File("web/${call.request.uri.split("/").last()}")
-                )
-            } catch (exc: Exception) {
-                when (exc) {
-                    is FileNotFoundException, is NoSuchFileException ->
-                        call.respondFile(File("web/index.html"))
-
-                    else -> throw exc
-                }
-            }
-        }
         exception<Throwable> { cause ->
             cause.printStackTrace()
             when (cause) {
