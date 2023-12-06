@@ -50,6 +50,13 @@ application {
     mainClass.set("io.ktor.server.jetty.EngineMain")
 }
 
+tasks.register<Copy>("copyResources") {
+    from(layout.projectDirectory.dir("mail"))
+    into(layout.buildDirectory.dir("install/brownie/mail"))
+}
+
+tasks.getByName("installDist").dependsOn("copyResources")
+
 tasks {
     create("stage").dependsOn("installDist")
 }
