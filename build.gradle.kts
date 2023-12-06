@@ -51,12 +51,11 @@ application {
 }
 
 tasks.register<Copy>("copyResources") {
+    dependsOn("installDist")
     from(layout.projectDirectory.dir("mail"))
     into(layout.buildDirectory.dir("install/brownie/mail"))
 }
 
-tasks.getByName("installDist").dependsOn("copyResources")
-
 tasks {
-    create("stage").dependsOn("installDist")
+    create("stage").dependsOn("copyResources")
 }
