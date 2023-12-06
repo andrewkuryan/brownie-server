@@ -1,7 +1,7 @@
 package com.gitlab.andrewkuryan.brownie
 
-import com.gitlab.andrewkuryan.brownie.api.memoryStorage.MemoryStorageApi
 import com.gitlab.andrewkuryan.brownie.api.StorageApi
+import com.gitlab.andrewkuryan.brownie.api.memoryStorage.MemoryStorageApi
 import com.gitlab.andrewkuryan.brownie.logic.SrpGenerator
 import com.gitlab.andrewkuryan.brownie.routes.rootRoutes
 import io.ktor.application.*
@@ -23,36 +23,37 @@ import javax.naming.NoPermissionException
 
 class ClientException(override val message: String?) : Exception()
 
+fun Application.getConfig(path: String): String {
+    return environment.config.propertyOrNull(path)?.getString() ?: System.getenv(path).toString()
+}
+
 @Suppress("UNUSED")
 fun Application.main() {
     Security.addProvider(BouncyCastleProvider())
 
     val kf = KeyFactory.getInstance("EC")
     val privateKeySpec = PKCS8EncodedKeySpec(
-        Base64.getDecoder().decode(environment.config.property("ktor.security.ecdsa.privateKey").getString())
+        Base64.getDecoder().decode(getConfig("ktor.security.ecdsa.privateKey"))
     )
     val privateKey = kf.generatePrivate(privateKeySpec)
 
     val srpGenerator = SrpGenerator(
-        N = BigInteger(environment.config.property("ktor.security.srp.N").getString(), 16),
-        NBitLen = environment.config.property("ktor.security.srp.NBitLen").getString().toInt(),
-        g = BigInteger(environment.config.property("ktor.security.srp.g").getString(), 16)
+        N = BigInteger(getConfig("ktor.security.srp.N"), 16),
+        NBitLen = getConfig("ktor.security.srp.NBitLen").toInt(),
+        g = BigInteger(getConfig("ktor.security.srp.g"), 16)
     )
     val memoryStorageApi: StorageApi = MemoryStorageApi()
     val customGsonConverter = CustomGsonConverter()
     val emailService = EmailService(
-        smtpServer = environment.config.property("ktor.smtp.server").getString(),
-        smtpServerPort = environment.config.property("ktor.smtp.port").getString().toInt(),
-        smtpServerUsername = environment.config.property("ktor.smtp.username").getString(),
-        smtpServerPassword = environment.config.property("ktor.smtp.password").getString(),
-        senderName = environment.config.property("ktor.smtp.senderName").getString(),
-        senderEmail = environment.config.property("ktor.smtp.senderEmail").getString(),
+        smtpServer = getConfig("ktor.smtp.server"),
+        smtpServerPort = getConfig("ktor.smtp.port").toInt(),
+        smtpServerUsername = getConfig("ktor.smtp.username"),
+        smtpServerPassword = getConfig("ktor.smtp.password"),
+        senderName = getConfig("ktor.smtp.senderName"),
+        senderEmail = getConfig("ktor.smtp.senderEmail"),
         templatesRoot = Paths.get("mail")
     )
-    val telegramApi = TelegramApi(
-        memoryStorageApi,
-        environment.config.property("ktor.telegram.botToken").getString(),
-    )
+    val telegramApi = TelegramApi(memoryStorageApi, getConfig("ktor.telegram.botToken"))
 
     install(CORS) {
         anyHost()
