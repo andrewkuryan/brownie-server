@@ -24,7 +24,9 @@ import javax.naming.NoPermissionException
 class ClientException(override val message: String?) : Exception()
 
 fun Application.getConfig(path: String): String {
-    return environment.config.propertyOrNull(path)?.getString() ?: System.getenv(path.uppercase()).toString()
+    println(path.uppercase().replace(".", "_"))
+    return environment.config.propertyOrNull(path)?.getString() ?: System.getenv()
+        .getOrDefault(path.uppercase().replace(".", "_"), "")
 }
 
 @Suppress("UNUSED")
@@ -82,6 +84,7 @@ fun Application.main() {
                 when (exc) {
                     is FileNotFoundException, is NoSuchFileException ->
                         call.respondFile(File("web/index.html"))
+
                     else -> throw exc
                 }
             }
