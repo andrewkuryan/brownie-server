@@ -24,7 +24,7 @@ import javax.naming.NoPermissionException
 class ClientException(override val message: String?) : Exception()
 
 fun Application.getConfig(path: String): String {
-    return environment.config.propertyOrNull(path)?.getString() ?: System.getenv(path).toString()
+    return environment.config.propertyOrNull(path)?.getString() ?: System.getenv(path.uppercase()).toString()
 }
 
 @Suppress("UNUSED")
